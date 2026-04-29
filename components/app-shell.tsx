@@ -4,7 +4,7 @@ import { AuthDialog } from "./auth-dialog";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-full flex-1 flex-col">
+    <div className="brand-shell flex min-h-dvh flex-1 flex-col">
       <AppHeader />
       <div className="flex-1">{children}</div>
       <AuthDialog />

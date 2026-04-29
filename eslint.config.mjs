@@ -6,7 +6,7 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    files: ["lib/auth-context.tsx", "components/menu-order-page.tsx"],
+    files: ["lib/auth-context.tsx", "components/menu-order-page.tsx", "components/menu-order/**/*.tsx"],
     rules: {
       // Hydration and initial fetch patterns intentionally sync client state in effects.
       "react-hooks/set-state-in-effect": "off",

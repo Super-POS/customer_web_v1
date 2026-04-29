@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
-import { apiErrorMessage, getApiBaseUrl } from "@/lib/api";
+import { apiErrorMessage, apiUrl } from "@/lib/api";
+import { notifyError } from "@/lib/notify";
 import { BrandLogo } from "./brand-logo";
 
 export function AuthDialog() {
@@ -15,17 +16,15 @@ export function AuthDialog() {
   const [regPhone, setRegPhone] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPass, setRegPass] = useState("");
-  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
-    setErr("");
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/account/auth/login`, {
+      const res = await fetch(apiUrl("/account/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: loginUser, password: loginPass, platform: "Web" }),
@@ -37,10 +36,10 @@ export function AuthDialog() {
         close();
         setLoginPass("");
       } else {
-        setErr("Invalid response");
+        notifyError("Invalid response");
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error");
+      notifyError(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -48,7 +47,6 @@ export function AuthDialog() {
 
   const onRegister = async (e: FormEvent) => {
     e.preventDefault();
-    setErr("");
     setLoading(true);
     try {
       const body: { name: string; phone: string; password: string; email?: string } = {
@@ -57,7 +55,7 @@ export function AuthDialog() {
         password: regPass,
       };
       if (regEmail.trim()) body.email = regEmail.trim();
-      const res = await fetch(`${getApiBaseUrl()}/api/account/auth/register`, {
+      const res = await fetch(apiUrl("/account/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -69,10 +67,10 @@ export function AuthDialog() {
         close();
         setRegPass("");
       } else {
-        setErr("Invalid response");
+        notifyError("Invalid response");
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error");
+      notifyError(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -86,33 +84,32 @@ export function AuthDialog() {
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_62%,transparent)] backdrop-blur-md"
         onClick={() => {
-          setErr("");
           close();
         }}
         aria-label="Close"
       />
-      <div className="relative z-10 w-full max-w-md sm:max-h-[90vh] sm:overflow-y-auto">
-        <div className="overflow-hidden rounded-t-3xl border border-slate-200/80 bg-white shadow-2xl sm:rounded-3xl">
-          <div className="relative border-b border-slate-800/80 bg-slate-950 px-4 py-5 sm:px-8 sm:py-6">
+      <div className="relative z-10 max-h-[min(100dvh,100svh)] w-full max-w-md overflow-y-auto sm:max-h-[90vh]">
+        <div className="brand-card overflow-hidden rounded-t-[2rem] shadow-2xl sm:rounded-[2rem]">
+          <div className="relative overflow-hidden border-b border-white/10 bg-[var(--text)] px-4 py-6 sm:px-8 sm:py-7">
+            <div className="absolute -right-12 -top-16 h-32 w-32 rounded-full border-[0.8rem] border-[var(--primary)] border-r-transparent opacity-25" />
             <button
               type="button"
               onClick={() => {
-                setErr("");
                 close();
               }}
-              className="absolute right-3 top-3 rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="absolute right-3 top-3 rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
             >
               <span className="sr-only">Close</span>
               <CloseIcon />
             </button>
-            <div className="flex justify-center pr-8">
+            <div className="relative flex justify-center pr-8">
               <BrandLogo size="md" href={null} />
             </div>
           </div>
-          <div className="p-6 sm:p-8">
-          <div className="mb-5 flex gap-1 rounded-xl bg-slate-100 p-1">
+          <div className="px-6 pt-6 sm:px-8 sm:pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px))] sm:pb-[max(2rem,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px))]">
+          <div className="mb-5 flex gap-1 rounded-full bg-[var(--page)] p-1 ring-1 ring-[var(--border)]">
             {(
               [
                 { id: "login" as const, label: "Sign in" },
@@ -123,30 +120,24 @@ export function AuthDialog() {
                 key={x.id}
                 type="button"
                 onClick={() => {
-                  setErr("");
                   open(x.id);
                 }}
                 className={
                   tab === x.id
-                    ? "flex-1 rounded-lg bg-white py-2 text-sm font-semibold text-slate-900 shadow-sm"
-                    : "flex-1 rounded-lg py-2 text-sm font-medium text-slate-500 transition hover:text-slate-800"
+                    ? "flex-1 rounded-full bg-[var(--surface)] py-2 text-sm font-bold text-[var(--text)] shadow-sm ring-1 ring-[var(--border)]"
+                    : "flex-1 rounded-full py-2 text-sm font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]"
                 }
               >
                 {x.label}
               </button>
             ))}
           </div>
-          {err && (
-            <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-              {err}
-            </p>
-          )}
           {tab === "login" ? (
             <form onSubmit={onLogin} className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Phone or email</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Phone or email</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={loginUser}
                   onChange={(e) => setLoginUser(e.target.value)}
                   required
@@ -154,10 +145,10 @@ export function AuthDialog() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Password</label>
                 <input
                   type="password"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={loginPass}
                   onChange={(e) => setLoginPass(e.target.value)}
                   required
@@ -167,7 +158,7 @@ export function AuthDialog() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-[var(--primary)] py-3 text-sm font-semibold text-white shadow-sm hover:bg-[var(--primary-dark)] disabled:opacity-50"
+                className="brand-primary-button w-full rounded-full py-3 text-sm font-bold disabled:opacity-50"
               >
                 {loading ? "…" : "Sign in"}
               </button>
@@ -175,37 +166,37 @@ export function AuthDialog() {
           ) : (
             <form onSubmit={onRegister} className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Name</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Phone</label>
                 <input
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Email (optional)</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Email (optional)</label>
                 <input
                   type="email"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Password (min 6)</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--text)]">Password (min 6)</label>
                 <input
                   type="password"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  className="brand-input w-full rounded-xl px-3 py-2.5 text-[var(--text)]"
                   value={regPass}
                   onChange={(e) => setRegPass(e.target.value)}
                   minLength={6}
@@ -215,7 +206,7 @@ export function AuthDialog() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-[var(--primary)] py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="brand-primary-button w-full rounded-full py-3 text-sm font-bold disabled:opacity-50"
               >
                 {loading ? "…" : "Create account"}
               </button>

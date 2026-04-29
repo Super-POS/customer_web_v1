@@ -33,7 +33,7 @@ export function BrandLogo({ size = "md", priority = false, className = "", href 
     <span className={`relative block ${className}`.trim()} style={{ width: w, height: h }}>
       <Image
         src={SRC}
-        alt="FOODIE"
+        alt="Club54"
         width={256}
         height={256}
         priority={priority}
