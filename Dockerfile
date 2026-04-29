@@ -4,6 +4,14 @@ COPY package*.json ./
 RUN npm ci
 
 FROM node:20-alpine AS builder
+ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_FILE_BASE_URL=/files
+ARG API_REWRITE_TARGET=http://localhost:9003
+ARG FILE_REWRITE_TARGET=http://localhost:9006
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_FILE_BASE_URL=$NEXT_PUBLIC_FILE_BASE_URL
+ENV API_REWRITE_TARGET=$API_REWRITE_TARGET
+ENV FILE_REWRITE_TARGET=$FILE_REWRITE_TARGET
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -13,7 +21,6 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV NEXT_PUBLIC_API_URL=http://localhost:9003
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
