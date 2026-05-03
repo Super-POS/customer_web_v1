@@ -1,6 +1,10 @@
+import { redirect } from "next/navigation";
 import { AccountPageHeader } from "@/components/account-page-header";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
 export default function RewardsPage() {
+  if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) redirect("/");
+
   return (
     <div className="brand-page max-w-3xl">
       <AccountPageHeader title="Rewards" subtitle="Coming soon." />

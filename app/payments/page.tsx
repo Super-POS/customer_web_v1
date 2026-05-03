@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
@@ -8,6 +9,7 @@ import { formatRiel } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError } from "@/lib/notify";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
 type PaymentRow = {
   id: number;
@@ -19,6 +21,7 @@ type PaymentRow = {
 };
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const { token } = useAuth();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [page, setPage] = useState(1);
@@ -28,7 +31,7 @@ export default function PaymentsPage() {
   const limit = 10;
 
   const load = useCallback(async () => {
-    if (!token) return;
+    if (!token || CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
     setLoading(true);
     try {
       const res = await fetchJson<{
@@ -49,6 +52,18 @@ export default function PaymentsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client data fetch on mount / page change
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) router.replace("/");
+  }, [router]);
+
+  if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-[var(--text-muted)]">Redirecting…</p>
+      </div>
+    );
+  }
 
   return (
     <SignInGate>

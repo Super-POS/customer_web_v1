@@ -5,14 +5,19 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
 import { BrandLogo } from "./brand-logo";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
-const NAV = [
+const NAV_ALL = [
   { href: "/", label: "Menu" },
   { href: "/orders", label: "Orders" },
   { href: "/wallet", label: "Wallet" },
   { href: "/rewards", label: "Rewards" },
   { href: "/payments", label: "Payments" },
 ] as const;
+
+const NAV = CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
+  ? NAV_ALL.filter((item) => item.href !== "/wallet" && item.href !== "/rewards" && item.href !== "/payments")
+  : NAV_ALL;
 
 function IconUser({ className }: { className?: string }) {
   return (

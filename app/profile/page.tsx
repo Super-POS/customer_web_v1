@@ -8,6 +8,7 @@ import { formatRiel } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
 type UserBrief = {
   id: number;
@@ -146,19 +147,29 @@ export default function ProfilePage() {
           </div>
         ) : overview ? (
           <>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="brand-card rounded-[1.5rem] p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Wallet</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--primary)]">
-                  {formatRiel(Number(overview.wallet?.balance ?? 0))} ៛
-                </p>
-              </div>
-              <div className="brand-card rounded-[1.5rem] p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Reward pts</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--primary)]">
-                  {Number(overview.rewards?.balance ?? 0)}
-                </p>
-              </div>
+            <div
+              className={
+                CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
+                  ? "mt-8 grid gap-4 sm:grid-cols-2"
+                  : "mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              }
+            >
+              {!CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY && (
+                <>
+                  <div className="brand-card rounded-[1.5rem] p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Wallet</p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--primary)]">
+                      {formatRiel(Number(overview.wallet?.balance ?? 0))} ៛
+                    </p>
+                  </div>
+                  <div className="brand-card rounded-[1.5rem] p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Reward pts</p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--primary)]">
+                      {Number(overview.rewards?.balance ?? 0)}
+                    </p>
+                  </div>
+                </>
+              )}
               <div className="brand-card rounded-[1.5rem] p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Orders</p>
                 <p className="mt-2 text-2xl font-bold text-[var(--text)]">{overview.stats?.total_orders ?? 0}</p>

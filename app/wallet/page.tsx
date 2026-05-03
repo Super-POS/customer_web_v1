@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SignInGate } from "@/components/sign-in-gate";
 import { formatRiel } from "@/lib/api";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
 type WalletTx = {
   id: number;
@@ -37,6 +39,7 @@ const BARAY_DEPOSIT_POLL_MS = 1_500;
 const BARAY_DEPOSIT_TIMEOUT_MS = 5 * 60_000;
 
 export default function WalletPage() {
+  const router = useRouter();
   const { token } = useAuth();
   const [balance, setBalance] = useState<number>(0);
   const [history, setHistory] = useState<WalletTx[]>([]);
@@ -141,14 +144,20 @@ export default function WalletPage() {
   );
 
   useEffect(() => {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client data fetch on mount
     void loadWallet();
   }, [loadWallet]);
 
   useEffect(() => {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client data fetch on mount / page change
     void loadHistory();
   }, [loadHistory]);
+
+  useEffect(() => {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) router.replace("/");
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -157,7 +166,8 @@ export default function WalletPage() {
   }, [clearDepositTimers]);
 
   useEffect(() => {
-    if (!token || loading || depositWaiting || resumePollStartedRef.current) return;
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || depositWaiting || resumePollStartedRef.current)
+      return;
     const pendingBarayDeposit = history.find(
       (tx) =>
         String(tx.type ?? "").toLowerCase() === "deposit" &&
@@ -207,6 +217,14 @@ export default function WalletPage() {
       setSubmitting(false);
     }
   };
+
+  if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-[var(--text-muted)]">Redirecting…</p>
+      </div>
+    );
+  }
 
   return (
     <SignInGate>

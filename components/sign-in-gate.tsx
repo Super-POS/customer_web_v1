@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
+import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 
 export function SignInGate({ children }: { children: React.ReactNode }) {
   const { token, ready, isTelegramWebApp, authError } = useAuth();
@@ -45,8 +46,9 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
               <p className="brand-kicker">Club54</p>
               <h1 className="brand-title mt-3 text-3xl">Open from Telegram</h1>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-[var(--text-muted)]">
-                Wallet, orders, and rewards need your Telegram session. Close this tab and tap the Mini App
-                button on the Club54 bot again.
+                {CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
+                  ? "Placing orders needs your Telegram session. Close this tab and tap the Mini App button on the Club54 bot again."
+                  : "Wallet, orders, and rewards need your Telegram session. Close this tab and tap the Mini App button on the Club54 bot again."}
               </p>
             </div>
           </div>
@@ -61,7 +63,9 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
             <p className="brand-kicker">Club54</p>
             <h1 className="brand-title mt-3 text-3xl">Sign in required</h1>
             <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-[var(--text-muted)]">
-              Sign in with your phone or email to view orders, wallet, rewards, and payments.
+              {CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
+                ? "Sign in with your phone or email to browse the menu and track your orders."
+                : "Sign in with your phone or email to view orders, wallet, rewards, and payments."}
             </p>
             <button
               type="button"
