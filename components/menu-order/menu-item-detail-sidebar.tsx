@@ -1,4 +1,7 @@
-import { formatRiel, mediaUrl } from "@/lib/api";
+"use client";
+
+import { formatUsdFromKhr, mediaUrl } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { addOrMergeCartLine, simpleLineQty } from "./cart";
 import { CoffeePlaceholder } from "./coffee-placeholder";
@@ -40,6 +43,7 @@ export function MenuItemDetailSidebar({
   setQtySimple,
 }: MenuItemDetailSidebarProps) {
   const item = active.item;
+  const { khrPerUsd } = useExchangeRate();
 
   return (
     <div className="fixed inset-0 z-[80]" role="presentation">
@@ -91,16 +95,15 @@ export function MenuItemDetailSidebar({
           <p className="mt-4 text-2xl font-bold tabular-nums text-[var(--primary)]">
             {menuHasModifiers(item) ? (
               <>
-                {formatRiel(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)))}{" "}
-                <span className="text-base font-medium text-[var(--text-muted)]">៛</span>{" "}
+                {formatUsdFromKhr(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)), khrPerUsd)}{" "}
                 <span className="text-sm font-normal text-[var(--text-muted)]">each</span>
                 <span className="block pt-1 text-sm font-normal text-[var(--text-muted)]">
-                  Base {formatRiel(item.unit_price)} ៛ plus selected options
+                  Base {formatUsdFromKhr(item.unit_price, khrPerUsd)} plus selected options
                 </span>
               </>
             ) : (
               <>
-                {formatRiel(item.unit_price)} <span className="text-base font-medium text-[var(--text-muted)]">៛</span>{" "}
+                {formatUsdFromKhr(item.unit_price, khrPerUsd)}{" "}
                 <span className="text-sm font-normal text-[var(--text-muted)]">each</span>
               </>
             )}
@@ -145,7 +148,7 @@ export function MenuItemDetailSidebar({
                               {delta !== 0 ? (
                                 <span className="shrink-0 tabular-nums text-[var(--text-muted)]">
                                   {delta > 0 ? "+" : ""}
-                                  {formatRiel(delta)} ៛
+                                  {formatUsdFromKhr(delta, khrPerUsd)}
                                 </span>
                               ) : null}
                             </span>
@@ -165,7 +168,7 @@ export function MenuItemDetailSidebar({
                 <p className="mt-5 border-t border-[var(--border)] pt-4 text-[13px] text-[var(--text-muted)]">
                   Line total:{" "}
                   <span className="font-bold tabular-nums text-[var(--text)]">
-                    {formatRiel(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)) * detailModifierQty)} ៛
+                    {formatUsdFromKhr(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)) * detailModifierQty, khrPerUsd)}
                   </span>
                 </p>
                 <button
@@ -202,7 +205,7 @@ export function MenuItemDetailSidebar({
               <p className="mt-5 border-t border-[var(--border)] pt-4 text-[13px] text-[var(--text-muted)]">
                 Line total:{" "}
                 <span className="font-bold tabular-nums text-[var(--text)]">
-                  {formatRiel(lineUnitPrice(item, []) * simpleLineQty(cartLines, item.id))} ៛
+                  {formatUsdFromKhr(lineUnitPrice(item, []) * simpleLineQty(cartLines, item.id), khrPerUsd)}
                 </span>
               </p>
             </div>

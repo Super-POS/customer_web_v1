@@ -1,4 +1,7 @@
-import { formatRiel } from "@/lib/api";
+"use client";
+
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { IconClose } from "./icons";
 import { OrderCartPanel } from "./order-cart-panel";
 import type { CartLine, MenuCategory } from "./types";
@@ -34,6 +37,7 @@ export function MenuCartSidebar({
   onCouponCodeInputChange: (value: string) => void;
   matchedActiveCoupon: { code: string; discount_percent: number } | null;
 }) {
+  const { khrPerUsd } = useExchangeRate();
   if (!open) return null;
 
   return (
@@ -68,7 +72,7 @@ export function MenuCartSidebar({
                     <span className="font-semibold text-[var(--text)]">{cartCount}</span>
                     {cartCount === 1 ? " item" : " items"}
                     <span className="text-[var(--text-muted)]"> · </span>
-                    <span className="font-semibold tabular-nums text-[var(--primary)]">{formatRiel(payableTotal)} ៛</span>
+                    <span className="font-semibold tabular-nums text-[var(--primary)]">{formatUsdFromKhr(payableTotal, khrPerUsd)}</span>
                   </>
                 )}
               </p>

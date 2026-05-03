@@ -1,4 +1,7 @@
-import { formatRiel, mediaUrl } from "@/lib/api";
+"use client";
+
+import { formatUsdFromKhr, mediaUrl } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifySuccess } from "@/lib/notify";
 import { totalQtyForMenu } from "./cart";
 import { CoffeePlaceholder } from "./coffee-placeholder";
@@ -13,6 +16,7 @@ export type MenuCategoryListProps = {
 };
 
 export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: MenuCategoryListProps) {
+  const { khrPerUsd } = useExchangeRate();
   return (
     <div
       id="menu-list"
@@ -71,7 +75,7 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
                             <p className="mt-1 font-mono text-[9px] tracking-[0.06em] text-[var(--text-muted)] sm:text-[10px]">{p.code}</p>
                           )}
                           <p className="mt-2 text-sm font-bold tabular-nums tracking-tight text-[var(--primary)] sm:text-base">
-                            {formatRiel(p.unit_price)} <span className="text-xs font-medium text-[var(--text-muted)]">៛</span>
+                            {formatUsdFromKhr(p.unit_price, khrPerUsd)}
                           </p>
                         </div>
                         <div

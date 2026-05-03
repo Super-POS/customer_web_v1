@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
 import { barayOutcomeFromPoll, type BarayPaymentStatePayload } from "@/lib/baray-payment";
-import { formatRiel } from "@/lib/api";
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError, notifySuccess } from "@/lib/notify";
@@ -53,6 +54,7 @@ function formatStatus(s: string): string {
 }
 
 export default function OrderDetailPage() {
+  const { khrPerUsd } = useExchangeRate();
   const params = useParams();
   const id = Number(params?.id);
   const { token } = useAuth();
@@ -291,12 +293,12 @@ export default function OrderDetailPage() {
                     <>
                       <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Total due</p>
                       <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--primary)]">
-                        {formatRiel(Number(order.total_price ?? 0))} ៛
+                        {formatUsdFromKhr(Number(order.total_price ?? 0), khrPerUsd)}
                       </p>
                     </>
                   ) : (
                     <p className="text-2xl font-bold tabular-nums text-[var(--primary)]">
-                      {formatRiel(Number(order.total_price ?? 0))} ៛
+                      {formatUsdFromKhr(Number(order.total_price ?? 0), khrPerUsd)}
                     </p>
                   )}
                 </div>
@@ -310,7 +312,7 @@ export default function OrderDetailPage() {
                         {d.qty}× {d.menu?.name ?? "Item"}
                       </span>
                       <span className="tabular-nums text-[var(--text)]">
-                        {formatRiel(d.unit_price * d.qty)} ៛
+                        {formatUsdFromKhr(d.unit_price * d.qty, khrPerUsd)}
                       </span>
                     </li>
                   ))}
@@ -324,7 +326,7 @@ export default function OrderDetailPage() {
                       <>
                         <li className="flex justify-between gap-2 py-2 text-sm font-medium text-[var(--text-muted)]">
                           <span>Subtotal</span>
-                          <span className="tabular-nums">{formatRiel(subtotal)} ៛</span>
+                          <span className="tabular-nums">{formatUsdFromKhr(subtotal, khrPerUsd)}</span>
                         </li>
                         {showDisc ? (
                           <li className="flex justify-between gap-2 py-2 text-sm text-green-700 dark:text-green-400">
@@ -335,7 +337,7 @@ export default function OrderDetailPage() {
                                 : ""}
                               )
                             </span>
-                            <span className="tabular-nums font-semibold">-{formatRiel(disc)} ៛</span>
+                            <span className="tabular-nums font-semibold">-{formatUsdFromKhr(disc, khrPerUsd)}</span>
                           </li>
                         ) : null}
                       </>
@@ -434,7 +436,7 @@ export default function OrderDetailPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold tabular-nums">{formatRiel(Number(tx.amount))} ៛</span>
+                            <span className="font-semibold tabular-nums">{formatUsdFromKhr(Number(tx.amount), khrPerUsd)}</span>
                             {tx.status === "pending" && (
                               <button
                                 type="button"

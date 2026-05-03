@@ -1,4 +1,7 @@
-import { formatRiel } from "@/lib/api";
+"use client";
+
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { cartLineKey } from "./cart";
 import { findMenuById, lineUnitPrice, modifierSummaryText, previewCouponDiscount } from "./menu-helpers";
 import { IconTrash } from "./icons";
@@ -37,6 +40,7 @@ export function OrderCartPanel({
   /** `drawer`: full-height column with scroll list + pinned footer (cart sidebar). */
   variant?: "card" | "drawer";
 }) {
+  const { khrPerUsd } = useExchangeRate();
   const isDrawer = variant === "drawer";
 
   const discountPreview =
@@ -101,8 +105,8 @@ export function OrderCartPanel({
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Line</p>
-                <p className="mt-1 font-semibold tabular-nums text-[var(--text)]">{formatRiel(u * q)} ៛</p>
-                <p className="text-[11px] tabular-nums text-[var(--text-muted)]">{formatRiel(u)} ៛ each</p>
+                <p className="mt-1 font-semibold tabular-nums text-[var(--text)]">{formatUsdFromKhr(u * q, khrPerUsd)}</p>
+                <p className="text-[11px] tabular-nums text-[var(--text-muted)]">{formatUsdFromKhr(u, khrPerUsd)} each</p>
               </div>
             </div>
           </div>
@@ -146,7 +150,7 @@ export function OrderCartPanel({
               : "text-xl font-semibold tabular-nums tracking-tight text-[var(--text)]"
           }
         >
-          {formatRiel(subtotal)} ៛
+          {formatUsdFromKhr(subtotal, khrPerUsd)}
         </span>
       </div>
 
@@ -156,7 +160,7 @@ export function OrderCartPanel({
             Discount ({matchedActiveCoupon.code}, {matchedActiveCoupon.discount_percent}%)
           </span>
           <span className={`tabular-nums font-semibold ${isDrawer ? "text-base" : "text-lg"}`}>
-            -{formatRiel(discountPreview)} ៛
+            -{formatUsdFromKhr(discountPreview, khrPerUsd)}
           </span>
         </div>
       ) : null}
@@ -170,7 +174,7 @@ export function OrderCartPanel({
               : "text-3xl font-bold tabular-nums tracking-tight text-[var(--primary)]"
           }
         >
-          {formatRiel(payableTotal)} ៛
+          {formatUsdFromKhr(payableTotal, khrPerUsd)}
         </span>
       </div>
       <button

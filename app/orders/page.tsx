@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
-import { formatRiel } from "@/lib/api";
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError } from "@/lib/notify";
@@ -23,6 +24,7 @@ function formatStatus(s: string): string {
 }
 
 export default function OrdersPage() {
+  const { khrPerUsd } = useExchangeRate();
   const { token } = useAuth();
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<OrderRow[]>([]);
@@ -96,7 +98,7 @@ export default function OrdersPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold tabular-nums text-[var(--primary)]">
-                      {formatRiel(Number(o.total_price ?? 0))} ៛
+                      {formatUsdFromKhr(Number(o.total_price ?? 0), khrPerUsd)}
                     </p>
                     <span className="text-xs font-medium text-[var(--primary)]">View →</span>
                   </div>

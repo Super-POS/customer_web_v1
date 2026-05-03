@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
-import { formatRiel } from "@/lib/api";
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError, notifySuccess } from "@/lib/notify";
@@ -42,6 +43,7 @@ type ProfilePayload = {
 const PHONE_HINT = "Cambodia format: +855… or 0… (8–9 digits after prefix).";
 
 export default function ProfilePage() {
+  const { khrPerUsd } = useExchangeRate();
   const { token } = useAuth();
   const [overview, setOverview] = useState<ProfilePayload["data"] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,7 +161,7 @@ export default function ProfilePage() {
                   <div className="brand-card rounded-[1.5rem] p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Wallet</p>
                     <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--primary)]">
-                      {formatRiel(Number(overview.wallet?.balance ?? 0))} ៛
+                      {formatUsdFromKhr(Number(overview.wallet?.balance ?? 0), khrPerUsd)}
                     </p>
                   </div>
                   <div className="brand-card rounded-[1.5rem] p-5">
@@ -177,7 +179,7 @@ export default function ProfilePage() {
               <div className="brand-card rounded-[1.5rem] p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Total spent</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--text)]">
-                  {formatRiel(Number(overview.stats?.total_spent ?? 0))} ៛
+                  {formatUsdFromKhr(Number(overview.stats?.total_spent ?? 0), khrPerUsd)}
                 </p>
               </div>
             </div>
@@ -194,7 +196,7 @@ export default function ProfilePage() {
                       >
                         <span className="font-medium text-[var(--text)]">#{o.receipt_number}</span>
                         <span className="tabular-nums text-[var(--text)]">
-                          {formatRiel(Number(o.total_price ?? 0))} ៛
+                          {formatUsdFromKhr(Number(o.total_price ?? 0), khrPerUsd)}
                         </span>
                       </Link>
                     </li>

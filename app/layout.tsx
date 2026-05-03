@@ -4,6 +4,7 @@ import Script from "next/script";
 import { AppToaster } from "@/components/app-toaster";
 import { AppShell } from "@/components/app-shell";
 import { AuthModalProvider } from "@/contexts/auth-modal-context";
+import { ExchangeRateProvider } from "@/contexts/exchange-rate-context";
 import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
@@ -50,10 +51,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh bg-background font-sans text-foreground">
         <AuthProvider>
-          <AuthModalProvider>
-            <AppShell>{children}</AppShell>
-            <AppToaster />
-          </AuthModalProvider>
+          <ExchangeRateProvider>
+            <AuthModalProvider>
+              <AppShell>{children}</AppShell>
+              <AppToaster />
+            </AuthModalProvider>
+          </ExchangeRateProvider>
         </AuthProvider>
       </body>
     </html>

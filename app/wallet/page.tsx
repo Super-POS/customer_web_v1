@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SignInGate } from "@/components/sign-in-gate";
-import { formatRiel } from "@/lib/api";
+import { formatUsd, formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
@@ -39,6 +40,7 @@ const BARAY_DEPOSIT_POLL_MS = 1_500;
 const BARAY_DEPOSIT_TIMEOUT_MS = 5 * 60_000;
 
 export default function WalletPage() {
+  const { khrPerUsd } = useExchangeRate();
   const router = useRouter();
   const { token } = useAuth();
   const [balance, setBalance] = useState<number>(0);
@@ -236,8 +238,7 @@ export default function WalletPage() {
             <div className="relative">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-white/62">Available balance</p>
               <p className="mt-4 font-[family-name:var(--font-oswald)] text-[clamp(2.25rem,8vw+1rem,3.75rem)] font-bold tracking-tight sm:text-6xl">
-                {formatRiel(balance)}
-                <span className="ml-2 text-2xl font-normal text-white/58">៛</span>
+                {formatUsdFromKhr(balance, khrPerUsd)}
               </p>
               <p className="mt-4 max-w-md text-sm leading-relaxed text-white/68">
                 Use your wallet for faster checkout, Baray QR deposits, and smoother counter pickup.
@@ -269,26 +270,26 @@ export default function WalletPage() {
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-[var(--text)]">Amount (៛)</label>
+                <label className="mb-1.5 block text-sm font-bold text-[var(--text)]">Amount (USD)</label>
                 <input
                   type="number"
-                  min={1}
-                  step={1}
+                  min={0.01}
+                  step={0.01}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="brand-input w-full rounded-2xl px-4 py-3 text-lg font-bold tabular-nums text-[var(--text)]"
-                  placeholder="5000"
+                  placeholder="25.00"
                   required
                 />
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[5000, 10000, 20000].map((n) => (
+                  {[10, 25, 50].map((n) => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => setAmount(String(n))}
                       className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-xs font-black text-[var(--primary-dark)] transition hover:border-[var(--primary)] hover:bg-white"
                     >
-                      {formatRiel(n)}
+                      {formatUsd(n)}
                     </button>
                   ))}
                 </div>
@@ -347,7 +348,7 @@ export default function WalletPage() {
                       )}
                     </div>
                     <span className="font-black tabular-nums text-[var(--text)]">
-                      {formatRiel(Number(tx.amount))} ៛
+                      {formatUsdFromKhr(Number(tx.amount), khrPerUsd)}
                     </span>
                   </li>
                 ))}

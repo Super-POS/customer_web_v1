@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
-import { formatRiel } from "@/lib/api";
+import { formatUsdFromKhr } from "@/lib/api";
+import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError } from "@/lib/notify";
@@ -21,6 +22,7 @@ type PaymentRow = {
 };
 
 export default function PaymentsPage() {
+  const { khrPerUsd } = useExchangeRate();
   const router = useRouter();
   const { token } = useAuth();
   const [rows, setRows] = useState<PaymentRow[]>([]);
@@ -113,7 +115,7 @@ export default function PaymentsPage() {
                   )}
                 </div>
                 <p className="text-lg font-bold tabular-nums text-[var(--primary)]">
-                  {formatRiel(Number(tx.amount))} ៛
+                  {formatUsdFromKhr(Number(tx.amount), khrPerUsd)}
                 </p>
               </li>
             ))}

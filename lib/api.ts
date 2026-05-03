@@ -46,6 +46,24 @@ export function getPublicMenuUrl(): string {
   return apiUrl("/share/menus");
 }
 
+/** Public KHR-per-USD rate (no JWT). Backend: GET `/api/share/exchange-rate`. */
+export function getPublicExchangeRateUrl(): string {
+  return apiUrl("/share/exchange-rate");
+}
+
+/** Matches API `FALLBACK_KHR_PER_USD` / `ExchangeSettingService`. */
+export const FALLBACK_KHR_PER_USD = 4100;
+
+/** Same rounding as API `khrToUsdDisplay` and web-v1 `ExchangeRateSettingService.khrToUsd`. */
+export function khrToUsdDisplay(khr: number | null | undefined, khrPerUsd: number): number {
+  const k = Number(khr ?? 0);
+  const r = Number(khrPerUsd);
+  if (!Number.isFinite(k) || !Number.isFinite(r) || r <= 0) {
+    return 0;
+  }
+  return Math.round((k / r) * 10000) / 10000;
+}
+
 /** File service base (menu images). Use same-origin `/files` so Telegram/ngrok can reach file-v1 via Next rewrites. */
 export function getFileBaseUrl(): string {
   let base = (process.env.NEXT_PUBLIC_FILE_BASE_URL || DEFAULT_FILE).replace(/\/$/, "");
@@ -102,8 +120,16 @@ export function apiErrorMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-export function formatRiel(amount: number): string {
-  return new Intl.NumberFormat("km-KH", {
-    maximumFractionDigits: 0,
+export function formatUsd(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
+}
+
+/** Format stored KHR amounts as USD using the active POS rate. */
+export function formatUsdFromKhr(khr: number | null | undefined, khrPerUsd: number): string {
+  return formatUsd(khrToUsdDisplay(khr, khrPerUsd));
 }
