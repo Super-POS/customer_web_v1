@@ -265,3 +265,330 @@ select {
   background: white;
   transform: translateY(-1px);
 }
+
+/* =============================================================================
+   Telegram Mini App — compact layout, touch targets, theme tint (see auth-context)
+   ============================================================================= */
+html[data-telegram-webapp="1"] {
+  --page: color-mix(in srgb, var(--tg-app-bg, #f4f1ea) 74%, #faf8f4);
+  --surface: color-mix(in srgb, var(--tg-app-bg, #fffefb) 68%, white);
+  --text: var(--tg-app-text, #2a2826);
+  --text-muted: color-mix(in srgb, var(--tg-app-text, #5c5855) 72%, var(--tg-app-hint, #8a8580));
+}
+
+html[data-telegram-webapp="1"] body {
+  -webkit-font-smoothing: antialiased;
+}
+
+html[data-telegram-webapp="1"] .brand-shell::after {
+  opacity: 0.035;
+  transform: scale(0.82);
+}
+
+html[data-telegram-webapp="1"] .brand-page {
+  padding-top: 0.5rem;
+  padding-bottom: max(1.75rem, env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  html[data-telegram-webapp="1"] .brand-page {
+    padding-top: 1.25rem;
+    padding-bottom: max(3rem, env(safe-area-inset-bottom));
+  }
+}
+
+html[data-telegram-webapp="1"] .brand-card-hover:hover {
+  transform: none;
+  box-shadow: var(--shadow-card);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-telegram-webapp="1"] .brand-card-hover:hover {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+    box-shadow: 0 24px 64px -34px rgba(218, 41, 28, 0.42), var(--shadow-card);
+    transform: translateY(-2px);
+  }
+}
+
+html[data-telegram-webapp="1"] .brand-card-hover:active {
+  transform: scale(0.988);
+}
+
+html[data-telegram-webapp="1"] .tg-app-header {
+  padding-bottom: 0.35rem;
+}
+
+html[data-telegram-webapp="1"] .tg-header-card {
+  border-radius: 1.2rem;
+  box-shadow:
+    0 12px 36px -28px rgba(36, 23, 15, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+html[data-telegram-webapp="1"] .tg-mobile-nav {
+  padding-bottom: max(0.5rem, var(--tg-content-safe-area-inset-bottom, 0px));
+}
+
+html[data-telegram-webapp="1"] .tg-mobile-nav a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
+  font-size: 0.8125rem;
+}
+
+html[data-telegram-webapp="1"] .menu-order-hero-wrap {
+  padding-top: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  html[data-telegram-webapp="1"] .menu-order-hero-wrap {
+    padding-top: 1.25rem;
+    padding-bottom: 1.75rem;
+  }
+}
+
+html[data-telegram-webapp="1"] .menu-order-hero-wrap h1.brand-title {
+  font-size: clamp(1.4rem, 5.8vw + 0.55rem, 2.05rem);
+  line-height: 1.06;
+}
+
+html[data-telegram-webapp="1"] .menu-order-hero-wrap .brand-kicker {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+}
+
+html[data-telegram-webapp="1"] #menu-list {
+  scroll-margin-top: 5rem;
+}
+
+html[data-telegram-webapp="1"] #menu-list section[class*="scroll-mt"] {
+  scroll-margin-top: 4.25rem;
+}
+
+html[data-telegram-webapp="1"] .tg-menu-grid {
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  html[data-telegram-webapp="1"] .tg-menu-grid {
+    gap: 1.35rem;
+  }
+}
+
+html[data-telegram-webapp="1"] .tg-menu-section-title {
+  margin-bottom: 1.25rem;
+}
+
+html[data-telegram-webapp="1"] .brand-page > header.brand-card {
+  border-radius: 1.35rem;
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  html[data-telegram-webapp="1"] .brand-page > header.brand-card {
+    border-radius: 1.75rem;
+    padding: 1.75rem 2rem;
+  }
+}
+
+/* Drawers (cart + item detail): narrower sheet, tighter rhythm in Telegram */
+html[data-telegram-webapp="1"] .tg-cart-sidebar,
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar {
+  width: min(100%, 20.5rem);
+  max-width: min(28rem, 100%);
+  border-top-left-radius: 0.95rem;
+  border-bottom-left-radius: 0.95rem;
+  border-left-color: color-mix(in srgb, var(--border) 82%, transparent);
+  box-shadow: -12px 0 40px -24px rgba(26, 24, 22, 0.38);
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar-header {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-bottom: 0.65rem;
+  padding-top: max(0.65rem, env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar-header .tg-drawer-eyebrow {
+  letter-spacing: 0.22em;
+  font-size: 0.5625rem;
+}
+
+html[data-telegram-webapp="1"] #cart-sidebar-title {
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar-header p.mt-2 {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar-header button.rounded-full {
+  padding: 0.45rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar-header button.rounded-full svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-scroll {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-list {
+  gap: 0.5rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-list.space-y-3 > * + * {
+  margin-top: 0.5rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-footer {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: 0.75rem;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-footer .space-y-4 > * + * {
+  margin-top: 0.65rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-footer span.text-2xl {
+  font-size: 1.35rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .order-cart-panel-drawer-footer .brand-primary-button {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  font-size: 0.8125rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .rounded-xl.border {
+  padding: 0.65rem 0.75rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .rounded-xl.border .mt-3 {
+  margin-top: 0.55rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .rounded-xl.border .pt-3 {
+  padding-top: 0.55rem;
+}
+
+html[data-telegram-webapp="1"] .tg-cart-sidebar .py-12 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-top {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: max(0.6rem, env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
+  padding-bottom: 0.55rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-top .tg-drawer-eyebrow {
+  letter-spacing: 0.2em;
+  font-size: 0.5625rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-top button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: 0.85rem;
+  padding-bottom: 1.25rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .rounded-2xl {
+  border-radius: 1rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-photo-placeholder {
+  min-height: 140px;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body h2 {
+  margin-top: 0.85rem;
+  font-size: 1.2rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-6 {
+  margin-top: 0.85rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-4 {
+  margin-top: 0.65rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-8 {
+  margin-top: 1rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .space-y-6 > * + * {
+  margin-top: 0.85rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .rounded-2xl.border.p-5 {
+  padding: 0.85rem 0.9rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-3.flex.flex-col.gap-2 {
+  margin-top: 0.5rem;
+  gap: 0.35rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body label.flex.cursor-pointer.items-center {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-4.flex.items-center {
+  margin-top: 0.65rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .mt-5 {
+  margin-top: 0.65rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body .brand-primary-button {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  font-size: 0.8125rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-body p.text-2xl.font-bold {
+  font-size: 1.2rem;
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-footer {
+  padding: 0.75rem 0.85rem;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+}
+
+html[data-telegram-webapp="1"] .tg-item-detail-sidebar-footer .brand-secondary-button {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  font-size: 0.8125rem;
+}

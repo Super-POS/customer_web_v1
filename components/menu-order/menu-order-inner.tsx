@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
 import { apiErrorMessage, apiUrl, getPublicMenuUrl } from "@/lib/api";
+import { fetchJson } from "@/lib/customer-fetch";
 import { notify, notifyError, notifyInfo } from "@/lib/notify";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadPersistedCartLines, persistCartLines, setCartLineQty as applyCartLineQty } from "./cart";
@@ -17,6 +18,7 @@ import {
   initialModifierSelections,
   lineUnitPrice,
   menuHasModifiers,
+  previewCouponDiscount,
 } from "./menu-helpers";
 import type { CartLine, ItemDetailState, MenuCategory, MenuItem } from "./types";
 
@@ -31,6 +33,8 @@ export function MenuOrderInner() {
   const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
   const [modifierSelections, setModifierSelections] = useState<Record<number, number | null>>({});
   const [detailModifierQty, setDetailModifierQty] = useState(1);
+  const [couponOptions, setCouponOptions] = useState<{ code: string; discount_percent: number }[]>([]);
+  const [couponCodeInput, setCouponCodeInput] = useState("");
 
   useEffect(() => {
     const lines = loadPersistedCartLines();
@@ -60,6 +64,42 @@ export function MenuOrderInner() {
   );
 
   const cartCount = useMemo(() => cartLines.reduce((a, l) => a + l.quantity, 0), [cartLines]);
+
+  const matchedActiveCoupon = useMemo(() => {
+    const key = couponCodeInput.trim().toUpperCase();
+    if (!key) {
+      return null;
+    }
+    return couponOptions.find((x) => x.code === key) ?? null;
+  }, [couponCodeInput, couponOptions]);
+
+  const payableTotal = useMemo(() => {
+    if (!matchedActiveCoupon || !token) {
+      return totalPrice;
+    }
+    return Math.max(0, totalPrice - previewCouponDiscount(totalPrice, matchedActiveCoupon.discount_percent));
+  }, [totalPrice, matchedActiveCoupon, token]);
+
+  useEffect(() => {
+    if (!cartSidebarOpen || !token) {
+      return;
+    }
+    let cancelled = false;
+    void fetchJson<{ data: { code: string; discount_percent: number }[] }>("/customer/orders/coupons", token)
+      .then((res) => {
+        if (!cancelled) {
+          setCouponOptions(res.data ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCouponOptions([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartSidebarOpen, token]);
 
   const setLineQty = (menuId: number, modifierIds: number[], qty: number) => {
     setCartLines((prev) => applyCartLineQty(prev, menuId, modifierIds, qty));
@@ -150,11 +190,18 @@ export function MenuOrderInner() {
               ? crypto.randomUUID()
               : `order-${Math.random().toString(36).slice(2)}`,
         },
-        body: JSON.stringify({ channel: "website", cart: JSON.stringify(items) }),
+        body: JSON.stringify({
+          channel: "website",
+          cart: JSON.stringify(items),
+          ...(couponCodeInput.trim()
+            ? { coupon_code: couponCodeInput.trim().toUpperCase() }
+            : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(apiErrorMessage(data, "Order failed"));
       setCartLines([]);
+      setCouponCodeInput("");
       setCartSidebarOpen(false);
       notify({ type: "ok", text: data?.message || "Order placed." });
     } catch (e) {
@@ -172,7 +219,11 @@ export function MenuOrderInner() {
 
       <MenuCategoryList menus={menus} cartLines={cartLines} onOpenItem={openItemDetail} onAddSimple={setQtySimple} />
 
-      <MenuFloatingCart cartCount={cartCount} totalPrice={totalPrice} onOpen={() => setCartSidebarOpen(true)} />
+      <MenuFloatingCart
+        cartCount={cartCount}
+        totalPrice={couponCodeInput.trim() ? payableTotal : totalPrice}
+        onOpen={() => setCartSidebarOpen(true)}
+      />
 
       <MenuCartSidebar
         open={cartSidebarOpen}
@@ -180,11 +231,15 @@ export function MenuOrderInner() {
         menus={menus}
         cartLines={cartLines}
         cartCount={cartCount}
-        totalPrice={totalPrice}
+        subtotal={totalPrice}
+        payableTotal={payableTotal}
         placingOrder={placingOrder}
         token={token}
         placeOrder={placeOrder}
         setLineQty={setLineQty}
+        couponCodeInput={couponCodeInput}
+        onCouponCodeInputChange={setCouponCodeInput}
+        matchedActiveCoupon={matchedActiveCoupon}
       />
 
       {activeItemDetail ? (

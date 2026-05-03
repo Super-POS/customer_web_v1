@@ -26,6 +26,16 @@ type CloudStorage = {
   removeItem?: (key: string, callback?: (err: Error | null) => void) => void;
 };
 
+type TelegramThemeParams = {
+  bg_color?: string;
+  text_color?: string;
+  hint_color?: string;
+  link_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  secondary_bg_color?: string;
+};
+
 type TelegramWebApp = {
   initData?: string;
   version?: string;
@@ -33,6 +43,7 @@ type TelegramWebApp = {
   expand?: () => void;
   safeAreaInset?: TelegramInset;
   contentSafeAreaInset?: TelegramInset;
+  themeParams?: TelegramThemeParams;
   CloudStorage?: CloudStorage;
 };
 
@@ -50,6 +61,29 @@ function applyTelegramInsetCss(root: HTMLElement, prefix: string, inset?: Telegr
   root.style.setProperty(`${prefix}-right`, `${inset.right ?? 0}px`);
   root.style.setProperty(`${prefix}-bottom`, `${inset.bottom ?? 0}px`);
   root.style.setProperty(`${prefix}-left`, `${inset.left ?? 0}px`);
+}
+
+function normalizeTelegramHex(raw?: string): string | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  const s = raw.trim();
+  if (s.startsWith("#")) return s;
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return `#${s}`;
+  return undefined;
+}
+
+function applyTelegramThemeCss(root: HTMLElement, tp?: TelegramThemeParams) {
+  if (!tp) return;
+  const set = (cssVar: string, key: keyof TelegramThemeParams) => {
+    const hex = normalizeTelegramHex(tp[key]);
+    if (hex) root.style.setProperty(cssVar, hex);
+  };
+  set("--tg-app-bg", "bg_color");
+  set("--tg-app-text", "text_color");
+  set("--tg-app-hint", "hint_color");
+  set("--tg-app-link", "link_color");
+  set("--tg-app-button", "button_color");
+  set("--tg-app-button-text", "button_text_color");
+  set("--tg-app-secondary-bg", "secondary_bg_color");
 }
 
 function isTelegramCloudStorageSupported(): boolean {
@@ -165,8 +199,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         webApp?.ready?.();
         webApp?.expand?.();
         const root = document.documentElement;
+        root.dataset.telegramWebapp = "1";
         applyTelegramInsetCss(root, "--tg-safe-area-inset", webApp?.safeAreaInset);
         applyTelegramInsetCss(root, "--tg-content-safe-area-inset", webApp?.contentSafeAreaInset);
+        applyTelegramThemeCss(root, webApp?.themeParams);
       }
 
       if (!initData) {

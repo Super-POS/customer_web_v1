@@ -9,22 +9,30 @@ export function MenuCartSidebar({
   menus,
   cartLines,
   cartCount,
-  totalPrice,
+  subtotal,
+  payableTotal,
   placingOrder,
   token,
   placeOrder,
   setLineQty,
+  couponCodeInput,
+  onCouponCodeInputChange,
+  matchedActiveCoupon,
 }: {
   open: boolean;
   onClose: () => void;
   menus: MenuCategory[];
   cartLines: CartLine[];
   cartCount: number;
-  totalPrice: number;
+  subtotal: number;
+  payableTotal: number;
   placingOrder: boolean;
   token: string | null;
   placeOrder: () => void | Promise<void>;
   setLineQty: (menuId: number, modifierIds: number[], qty: number) => void;
+  couponCodeInput: string;
+  onCouponCodeInputChange: (value: string) => void;
+  matchedActiveCoupon: { code: string; discount_percent: number } | null;
 }) {
   if (!open) return null;
 
@@ -37,15 +45,15 @@ export function MenuCartSidebar({
         onClick={onClose}
       />
       <aside
-        className="absolute inset-y-0 right-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-[-24px_0_80px_-28px_rgba(34,34,33,0.35)]"
+        className="tg-cart-sidebar absolute inset-y-0 right-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-[-24px_0_80px_-28px_rgba(34,34,33,0.35)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-sidebar-title"
       >
-        <header className="shrink-0 border-b border-[var(--border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px))] sm:px-5">
+        <header className="tg-cart-sidebar-header shrink-0 border-b border-[var(--border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px))] sm:px-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--primary)]">Club54</p>
+              <p className="tg-drawer-eyebrow text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--primary)]">Club54</p>
               <h2
                 id="cart-sidebar-title"
                 className="mt-0.5 font-[family-name:var(--font-oswald)] text-xl font-semibold tracking-tight text-[var(--text)]"
@@ -60,7 +68,7 @@ export function MenuCartSidebar({
                     <span className="font-semibold text-[var(--text)]">{cartCount}</span>
                     {cartCount === 1 ? " item" : " items"}
                     <span className="text-[var(--text-muted)]"> · </span>
-                    <span className="font-semibold tabular-nums text-[var(--primary)]">{formatRiel(totalPrice)} ៛</span>
+                    <span className="font-semibold tabular-nums text-[var(--primary)]">{formatRiel(payableTotal)} ៛</span>
                   </>
                 )}
               </p>
@@ -81,11 +89,15 @@ export function MenuCartSidebar({
           menus={menus}
           cartLines={cartLines}
           cartCount={cartCount}
-          totalPrice={totalPrice}
+          subtotal={subtotal}
+          payableTotal={payableTotal}
           placingOrder={placingOrder}
           token={token}
           placeOrder={placeOrder}
           setLineQty={setLineQty}
+          couponCodeInput={couponCodeInput}
+          onCouponCodeInputChange={onCouponCodeInputChange}
+          matchedActiveCoupon={matchedActiveCoupon}
           panelClassName="min-h-0 flex-1 flex flex-col"
         />
       </aside>

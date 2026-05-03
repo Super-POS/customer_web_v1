@@ -26,6 +26,9 @@ type OrderDetail = {
   status: string;
   channel?: string;
   ordered_at?: string | null;
+  coupon_code?: string | null;
+  discount_percent?: number | null;
+  discount_amount?: number | null;
   details?: DetailLine[];
 };
 
@@ -283,9 +286,20 @@ export default function OrderDetailPage() {
                     {order.ordered_at ? new Date(order.ordered_at).toLocaleString() : "—"}
                   </p>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-[var(--primary)]">
-                  {formatRiel(Number(order.total_price ?? 0))} ៛
-                </p>
+                <div className="text-right">
+                  {(order.details?.length ?? 0) > 0 ? (
+                    <>
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Total due</p>
+                      <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--primary)]">
+                        {formatRiel(Number(order.total_price ?? 0))} ៛
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-bold tabular-nums text-[var(--primary)]">
+                      {formatRiel(Number(order.total_price ?? 0))} ៛
+                    </p>
+                  )}
+                </div>
               </div>
 
               {(order.details?.length ?? 0) > 0 && (
@@ -300,6 +314,33 @@ export default function OrderDetailPage() {
                       </span>
                     </li>
                   ))}
+                  {(() => {
+                    const subtotal =
+                      order.details!.reduce((s, d) => s + d.unit_price * d.qty, 0);
+                    const disc = Number(order.discount_amount ?? 0);
+                    const code = order.coupon_code?.trim();
+                    const showDisc = disc > 0 && (code?.length ?? 0) > 0;
+                    return (
+                      <>
+                        <li className="flex justify-between gap-2 py-2 text-sm font-medium text-[var(--text-muted)]">
+                          <span>Subtotal</span>
+                          <span className="tabular-nums">{formatRiel(subtotal)} ៛</span>
+                        </li>
+                        {showDisc ? (
+                          <li className="flex justify-between gap-2 py-2 text-sm text-green-700 dark:text-green-400">
+                            <span>
+                              Discount ({code}
+                              {order.discount_percent != null
+                                ? `, ${order.discount_percent}%`
+                                : ""}
+                              )
+                            </span>
+                            <span className="tabular-nums font-semibold">-{formatRiel(disc)} ៛</span>
+                          </li>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </ul>
               )}
             </div>

@@ -50,13 +50,13 @@ export function MenuItemDetailSidebar({
         onClick={onClose}
       />
       <aside
-        className="absolute inset-y-0 right-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col bg-[var(--surface)] shadow-[-18px_0_60px_-22px_rgba(34,34,33,0.45)]"
+        className="tg-item-detail-sidebar absolute inset-y-0 right-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col bg-[var(--surface)] shadow-[-18px_0_60px_-22px_rgba(34,34,33,0.45)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="menu-item-detail-title"
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 pt-[max(1rem,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px))] sm:px-5 sm:py-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--primary)]">{active.categoryName}</p>
+        <div className="tg-item-detail-sidebar-top flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 pt-[max(1rem,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px))] sm:px-5 sm:py-5">
+          <p className="tg-drawer-eyebrow text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--primary)]">{active.categoryName}</p>
           <button
             type="button"
             onClick={onClose}
@@ -67,14 +67,14 @@ export function MenuItemDetailSidebar({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-8 pt-5 sm:px-5">
+        <div className="tg-item-detail-sidebar-body min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-8 pt-5 sm:px-5">
           <div className="overflow-hidden rounded-2xl bg-[var(--page)] ring-1 ring-black/[0.06]">
-            <div className="relative aspect-[5/4] w-full">
+            <div className="relative aspect-[5/4] w-full tg-item-detail-photo">
               {mediaUrl(item.image) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={mediaUrl(item.image)!} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full min-h-[200px] items-center justify-center">
+                <div className="flex h-full min-h-[200px] items-center justify-center tg-item-detail-photo-placeholder">
                   <CoffeePlaceholder className="h-20 w-20 text-[var(--text-muted)] opacity-35" />
                 </div>
               )}
@@ -207,12 +207,6 @@ export function MenuItemDetailSidebar({
               </p>
             </div>
           )}
-        </div>
-
-        <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)] p-4 pb-[max(1.25rem,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px))] sm:p-5">
-          <button type="button" onClick={onClose} className="brand-secondary-button w-full rounded-full py-3.5 text-[14px] font-bold">
-            Continue browsing
-          </button>
         </div>
       </aside>
     </div>

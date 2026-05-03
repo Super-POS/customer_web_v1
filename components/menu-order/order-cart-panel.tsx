@@ -1,6 +1,6 @@
 import { formatRiel } from "@/lib/api";
 import { cartLineKey } from "./cart";
-import { findMenuById, lineUnitPrice, modifierSummaryText } from "./menu-helpers";
+import { findMenuById, lineUnitPrice, modifierSummaryText, previewCouponDiscount } from "./menu-helpers";
 import { IconTrash } from "./icons";
 import { QtyStepper } from "./qty-stepper";
 import type { CartLine, MenuCategory } from "./types";
@@ -9,27 +9,40 @@ export function OrderCartPanel({
   menus,
   cartLines,
   cartCount,
-  totalPrice,
+  subtotal,
+  payableTotal,
   placingOrder,
   token,
   placeOrder,
   setLineQty,
+  couponCodeInput = "",
+  onCouponCodeInputChange,
+  matchedActiveCoupon = null,
   panelClassName,
   variant = "card",
 }: {
   menus: MenuCategory[];
   cartLines: CartLine[];
   cartCount: number;
-  totalPrice: number;
+  subtotal: number;
+  payableTotal: number;
   placingOrder: boolean;
   token: string | null;
   placeOrder: () => void | Promise<void>;
   setLineQty: (menuId: number, modifierIds: number[], qty: number) => void;
+  couponCodeInput?: string;
+  onCouponCodeInputChange?: (value: string) => void;
+  matchedActiveCoupon?: { code: string; discount_percent: number } | null;
   panelClassName?: string;
   /** `drawer`: full-height column with scroll list + pinned footer (cart sidebar). */
   variant?: "card" | "drawer";
 }) {
   const isDrawer = variant === "drawer";
+
+  const discountPreview =
+    token && matchedActiveCoupon
+      ? previewCouponDiscount(subtotal, matchedActiveCoupon.discount_percent)
+      : 0;
 
   const lineList = (
     <>
@@ -100,8 +113,56 @@ export function OrderCartPanel({
 
   const footer = (
     <div className="w-full space-y-4">
+      {token ? (
+        <div className="space-y-1.5">
+          <label
+            htmlFor="checkout-coupon"
+            className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]"
+          >
+            Coupon code
+          </label>
+          <input
+            id="checkout-coupon"
+            type="text"
+            value={couponCodeInput}
+            disabled={placingOrder || cartCount === 0}
+            onChange={(e) => onCouponCodeInputChange?.(e.target.value.toUpperCase())}
+            placeholder="Optional"
+            maxLength={64}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 font-mono text-sm font-medium uppercase tracking-wide text-[var(--text)] shadow-sm outline-none transition placeholder:normal-case placeholder:tracking-normal placeholder:font-sans focus:border-[var(--primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_22%,transparent)] disabled:opacity-50"
+          />
+        </div>
+      ) : null}
+
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Subtotal</span>
+        <span
+          className={
+            isDrawer
+              ? "text-lg font-semibold tabular-nums tracking-tight text-[var(--text)]"
+              : "text-xl font-semibold tabular-nums tracking-tight text-[var(--text)]"
+          }
+        >
+          {formatRiel(subtotal)} ៛
+        </span>
+      </div>
+
+      {discountPreview > 0 && matchedActiveCoupon ? (
+        <div className="flex items-baseline justify-between gap-4 text-green-700 dark:text-green-400">
+          <span className="text-xs font-bold uppercase tracking-[0.14em]">
+            Discount ({matchedActiveCoupon.code}, {matchedActiveCoupon.discount_percent}%)
+          </span>
+          <span className={`tabular-nums font-semibold ${isDrawer ? "text-base" : "text-lg"}`}>
+            -{formatRiel(discountPreview)} ៛
+          </span>
+        </div>
+      ) : null}
+
+      <div className="flex items-baseline justify-between gap-4 border-t border-[var(--border)] pt-3">
+        <span className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Total due</span>
         <span
           className={
             isDrawer
@@ -109,7 +170,7 @@ export function OrderCartPanel({
               : "text-3xl font-bold tabular-nums tracking-tight text-[var(--primary)]"
           }
         >
-          {formatRiel(totalPrice)} ៛
+          {formatRiel(payableTotal)} ៛
         </span>
       </div>
       <button
@@ -134,11 +195,11 @@ export function OrderCartPanel({
 
   if (isDrawer) {
     return (
-      <div className={`flex min-h-0 flex-1 flex-col ${panelClassName ?? ""}`.trim()}>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5">
-          <div className="space-y-3">{lineList}</div>
+      <div className={`order-cart-panel-drawer flex min-h-0 flex-1 flex-col ${panelClassName ?? ""}`.trim()}>
+        <div className="order-cart-panel-drawer-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5">
+          <div className="order-cart-panel-drawer-list space-y-3">{lineList}</div>
         </div>
-        <div className="shrink-0 border-t border-[var(--border)] bg-[var(--page)] px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px))] sm:px-5">
+        <div className="order-cart-panel-drawer-footer shrink-0 border-t border-[var(--border)] bg-[var(--page)] px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom),var(--tg-safe-area-inset-bottom,0px))] sm:px-5">
           {footer}
         </div>
       </div>

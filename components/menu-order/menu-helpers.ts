@@ -62,6 +62,17 @@ export function findMenuById(menus: MenuCategory[], id: number): MenuItem | unde
   return undefined;
 }
 
+/** Matches cashier/API rounding: percent of subtotal, capped at subtotal. */
+export function previewCouponDiscount(subtotal: number, discountPercent: number): number {
+  const base = Number(subtotal);
+  const pct = Number(discountPercent);
+  if (!Number.isFinite(base) || base <= 0 || !Number.isFinite(pct) || pct <= 0) {
+    return 0;
+  }
+  const d = Math.round((base * pct) / 100);
+  return Math.min(d, base);
+}
+
 export function initialModifierSelections(item: MenuItem): Record<number, number | null> {
   const sel: Record<number, number | null> = {};
   for (const g of sortedModifierGroups(item)) {

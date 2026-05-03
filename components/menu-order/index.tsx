@@ -50,5 +50,6 @@ export {
   findMenuById,
   lineUnitPrice,
   menuHasModifiers,
+  previewCouponDiscount,
   sortedModifierGroups,
 } from "./menu-helpers";

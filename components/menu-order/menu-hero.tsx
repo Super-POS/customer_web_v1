@@ -3,7 +3,7 @@ export function MenuOrderHero() {
     <section>
       <div className="absolute inset-x-0 top-0 h-4" />
       <div className="absolute -right-24 top-24 hidden h-72 w-72 rounded-full lg:block" />
-      <div className="animate-fade-up relative mx-auto max-w-6xl pb-8 pt-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] max-[380px]:pl-3 max-[380px]:pr-3 sm:pb-10 sm:pl-6 sm:pr-6 sm:pt-14">
+      <div className="animate-fade-up menu-order-hero-wrap relative mx-auto max-w-6xl pb-8 pt-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] max-[380px]:pl-3 max-[380px]:pr-3 sm:pb-10 sm:pl-6 sm:pr-6 sm:pt-14">
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_28rem] lg:items-center">
           <div className="min-w-0 max-w-2xl">
             <span className="brand-kicker inline-flex items-center rounded-full bg-[var(--primary-soft)] px-3 py-1">Club54 signature picks</span>
