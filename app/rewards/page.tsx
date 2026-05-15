@@ -17,6 +17,7 @@ type RankInfo = {
   min_points?: number;
   max_points?: number | null;
   next_rank_name?: string | null;
+  points_to_next?: number | null;
   icon?: string | null;
   color?: string | null;
 };
@@ -38,6 +39,8 @@ type PointHistory = {
 
 type RewardsProfile = {
   balance: number;
+  total_earned?: number;
+  discount_value?: number;
   rank?: RankInfo | null;
   badge?: BadgeInfo | null;
   history?: PointHistory[];
@@ -51,30 +54,39 @@ type QuestionItem = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const RANK_COLORS: Record<string, string> = {
-  bronze: "#cd7f32",
-  silver: "#9ca3af",
-  gold: "#f59e0b",
-  platinum: "#6366f1",
-  diamond: "#06b6d4",
-  default: "#da291c",
+// 15 coffee rank tiers — level maps to a theme color
+const RANK_TIER_COLORS: Record<number, string> = {
+  1:  "#6b9e6b", // Green Bean — green
+  2:  "#c8a96e", // Light Roast Recruit — wheat
+  3:  "#b87333", // City Roast Member — copper
+  4:  "#a0522d", // Full City Explorer — sienna
+  5:  "#8b4513", // Medium Roast Regular — saddle brown
+  6:  "#7b3f00", // Vienna Roast Veteran — dark brown
+  7:  "#5c2e00", // Dark Roast Devotee — deep brown
+  8:  "#3d1f00", // French Roast Champion — near black brown
+  9:  "#da291c", // Espresso Elite — brand red
+  10: "#9a1414", // Single Origin Sovereign — deep red
+  11: "#7c3aed", // Reserve Roast Legend — purple
+  12: "#4f46e5", // Black Label Patron — indigo
+  13: "#0284c7", // Master Blend Guardian — blue
+  14: "#f59e0b", // The Signature Pour — gold
+  15: "#6366f1", // Infinite Roast — violet
 };
 
 function rankColor(rank?: RankInfo | null): string {
-  if (!rank?.name) return RANK_COLORS.default;
-  const key = rank.name.toLowerCase();
-  for (const [k, v] of Object.entries(RANK_COLORS)) {
-    if (key.includes(k)) return v;
+  if (rank?.level != null && RANK_TIER_COLORS[rank.level]) {
+    return RANK_TIER_COLORS[rank.level];
   }
-  return rank.color ?? RANK_COLORS.default;
+  return rank?.color ?? "#da291c";
 }
 
-function rankProgress(balance: number, rank?: RankInfo | null): number {
+// Rank is based on total_earned, not spendable balance
+function rankProgress(totalEarned: number, rank?: RankInfo | null): number {
   if (!rank) return 0;
   const min = Number(rank.min_points ?? 0);
   const max = Number(rank.max_points ?? 0);
   if (!max || max <= min) return 100;
-  return Math.min(100, Math.max(0, Math.round(((balance - min) / (max - min)) * 100)));
+  return Math.min(100, Math.max(0, Math.round(((totalEarned - min) / (max - min)) * 100)));
 }
 
 function formatPts(n: number): string {
@@ -96,14 +108,24 @@ function ptsBadgeClass(points: number): string {
 
 function RankHeroCard({
   balance,
+  totalEarned,
+  discountValue,
   rank,
 }: {
   balance: number;
+  totalEarned: number;
+  discountValue?: number;
   rank?: RankInfo | null;
 }) {
   const color = rankColor(rank);
-  const progress = rankProgress(balance, rank);
-  const nextPts = rank?.max_points ? Number(rank.max_points) - balance : null;
+  const progress = rankProgress(totalEarned, rank);
+  // Use server-provided points_to_next if available, otherwise compute from total_earned
+  const pointsToNext =
+    rank?.points_to_next != null
+      ? Number(rank.points_to_next)
+      : rank?.max_points
+        ? Math.max(0, Number(rank.max_points) - totalEarned)
+        : null;
 
   return (
     <section
@@ -117,7 +139,7 @@ function RankHeroCard({
       <div className="absolute bottom-0 right-8 h-32 w-32 rounded-full border-[1rem] border-white/10 border-r-transparent" />
 
       <div className="relative">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/60">Loyalty Points</p>
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-white/60">Spendable Points</p>
 
         <div className="mt-3 flex items-end gap-4">
           <p className="font-[family-name:var(--font-oswald)] text-[clamp(2.5rem,8vw+1rem,3.75rem)] font-bold leading-none tracking-tight">
@@ -155,8 +177,8 @@ function RankHeroCard({
               <span>{rank.min_points?.toLocaleString() ?? 0} pts</span>
               {rank.max_points ? (
                 <span>
-                  {nextPts != null && nextPts > 0
-                    ? `${nextPts.toLocaleString()} more to ${rank.next_rank_name ?? "next rank"}`
+                  {pointsToNext != null && pointsToNext > 0
+                    ? `${pointsToNext.toLocaleString()} more to ${rank.next_rank_name ?? "next rank"}`
                     : rank.max_points.toLocaleString() + " pts"}
                 </span>
               ) : (
@@ -168,9 +190,9 @@ function RankHeroCard({
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           {[
-            ["Rank", rank?.name ?? "—"],
-            ["Level", rank?.level != null ? `#${rank.level}` : "—"],
-            ["Balance", formatPts(balance)],
+            ["Level", rank?.level != null ? `Lv. ${rank.level}` : "—"],
+            ["Total Earned", formatPts(totalEarned)],
+            ["Discount", discountValue != null ? `$${discountValue.toFixed(2)}` : "—"],
           ].map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/48">{label}</p>
@@ -374,13 +396,12 @@ export default function RewardsPage() {
     if (!token) return;
     setLoadingQuestions(true);
     try {
-      const res = await fetchJson<{ data: QuestionItem[] | { questions: QuestionItem[] } }>(
+      // API returns { data: QuestionItem[] } — array directly under data
+      const res = await fetchJson<{ data: QuestionItem[] }>(
         "/customer/rewards/badge/questions",
         token,
       );
-      // Handle both { data: [...] } and { data: { questions: [...] } }
-      const raw = res.data;
-      const list = Array.isArray(raw) ? raw : (raw as { questions?: QuestionItem[] }).questions ?? [];
+      const list = Array.isArray(res.data) ? res.data : [];
       setQuestions(list);
       setShowQuestionnaire(true);
     } catch (e) {
@@ -394,14 +415,18 @@ export default function RewardsPage() {
     if (!token) return;
     setSubmittingBadge(true);
     try {
-      const res = await fetchJson<{ data?: { badge?: BadgeInfo }; message?: string }>(
+      // API response: { data: { badge, rank }, message }
+      const res = await fetchJson<{ data?: { badge?: BadgeInfo; rank?: RankInfo }; message?: string }>(
         "/customer/rewards/badge",
         token,
         { method: "POST", body: JSON.stringify({ answers }) },
       );
       const badge = res.data?.badge;
+      const rank = res.data?.rank;
       if (badge) {
-        setProfile((prev) => (prev ? { ...prev, badge } : prev));
+        setProfile((prev) =>
+          prev ? { ...prev, badge, ...(rank ? { rank } : {}) } : prev,
+        );
         notifySuccess(res.message ?? `Badge assigned: ${badge.name} 🎉`);
       } else {
         notifySuccess(res.message ?? "Badge assigned! ✨");
@@ -445,7 +470,12 @@ export default function RewardsPage() {
         ) : (
           <div className="mt-8 space-y-5">
             {/* Rank hero */}
-            <RankHeroCard balance={profile?.balance ?? 0} rank={profile?.rank} />
+            <RankHeroCard
+              balance={profile?.balance ?? 0}
+              totalEarned={profile?.total_earned ?? profile?.balance ?? 0}
+              discountValue={profile?.discount_value}
+              rank={profile?.rank}
+            />
 
             {/* Badge section */}
             {showQuestionnaire && questions ? (
