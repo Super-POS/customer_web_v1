@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
 import { barayOutcomeFromPoll, type BarayPaymentStatePayload } from "@/lib/baray-payment";
+import { bakongOutcomeFromPoll, type BakongPaymentStatePayload } from "@/lib/bakong-payment";
+import { QRCodeSVG } from "qrcode.react";
 import { formatUsdFromKhr } from "@/lib/api";
 import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
@@ -49,6 +51,9 @@ const SIMPLE_PAY_METHODS = ["cash", "wallet", "card"] as const;
 const BARAY_POLL_MS = 1_500;
 const BARAY_TIMEOUT_MS = 5 * 60_000;
 
+const BAKONG_POLL_MS = 3_000;
+const BAKONG_TIMEOUT_MS = 5 * 60_000;
+
 function formatStatus(s: string): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -67,6 +72,14 @@ export default function OrderDetailPage() {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumePollStartedRef = useRef(false);
+
+  const [bakongBusy, setBakongBusy] = useState(false);
+  const [bakongWaiting, setBakongWaiting] = useState(false);
+  const [bakongQr, setBakongQr] = useState<string | null>(null);
+  const [bakongExpiry, setBakongExpiry] = useState<string | null>(null);
+  const bakongPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bakongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bakongResumeStartedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -96,6 +109,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     resumePollStartedRef.current = false;
+    bakongResumeStartedRef.current = false;
   }, [id]);
 
   useEffect(() => {
@@ -113,6 +127,18 @@ export default function OrderDetailPage() {
       timeoutRef.current = null;
     }
     setBarayWaiting(false);
+  }, []);
+
+  const clearBakongTimers = useCallback(() => {
+    if (bakongPollTimerRef.current != null) {
+      clearInterval(bakongPollTimerRef.current);
+      bakongPollTimerRef.current = null;
+    }
+    if (bakongTimeoutRef.current != null) {
+      clearTimeout(bakongTimeoutRef.current);
+      bakongTimeoutRef.current = null;
+    }
+    setBakongWaiting(false);
   }, []);
 
   const watchBaraySettlement = useCallback(
@@ -153,11 +179,57 @@ export default function OrderDetailPage() {
     [token, clearBarayTimers, load],
   );
 
+  const watchBakongSettlement = useCallback(
+    async (orderId: number) => {
+      if (!token) return;
+      clearBakongTimers();
+      setBakongWaiting(true);
+
+      bakongTimeoutRef.current = setTimeout(() => {
+        clearBakongTimers();
+        notifyError("Waiting timed out — check payment status below or contact staff.");
+      }, BAKONG_TIMEOUT_MS);
+
+      const tick = async () => {
+        try {
+          const res = await fetchJson(
+            `/cashier/ordering/bakong/order/${orderId}/payment-state`,
+            token,
+          );
+          const outcome = bakongOutcomeFromPoll(res as BakongPaymentStatePayload);
+          if (outcome === "paid") {
+            clearBakongTimers();
+            setBakongQr(null);
+            notifySuccess("Payment received. Thank you!");
+            await load();
+          } else if (outcome === "cancelled") {
+            clearBakongTimers();
+            setBakongQr(null);
+            notifyError("This order was cancelled.");
+            await load();
+          }
+        } catch {
+          /* keep polling */
+        }
+      };
+
+      await tick();
+      bakongPollTimerRef.current = setInterval(() => void tick(), BAKONG_POLL_MS);
+    },
+    [token, clearBakongTimers, load],
+  );
+
   useEffect(() => {
     return () => {
       clearBarayTimers();
     };
   }, [clearBarayTimers]);
+
+  useEffect(() => {
+    return () => {
+      clearBakongTimers();
+    };
+  }, [clearBakongTimers]);
 
   /** After refresh: resume polling if Baray payment still pending (same behaviour as cashier POS). */
   useEffect(() => {
@@ -174,6 +246,22 @@ export default function OrderDetailPage() {
       void watchBaraySettlement(order.id);
     }
   }, [token, loading, order, payments, watchBaraySettlement]);
+
+  /** After refresh: resume polling if Bakong payment still pending. */
+  useEffect(() => {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || !order || bakongResumeStartedRef.current) return;
+    const pendingBakong = payments.some(
+      (tx) =>
+        String(tx.method).toLowerCase() === "qr" &&
+        String(tx.status).toLowerCase() === "pending" &&
+        String(tx.note ?? "").toLowerCase() === "bakong",
+    );
+    if (order.status === "awaiting_payment" && pendingBakong) {
+      bakongResumeStartedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resume Bakong poll after refresh
+      void watchBakongSettlement(order.id);
+    }
+  }, [token, loading, order, payments, watchBakongSettlement]);
 
   const startBarayCheckout = async () => {
     if (!token || !order) return;
@@ -204,6 +292,33 @@ export default function OrderDetailPage() {
       notifyError(e instanceof Error ? e.message : "Could not start Baray payment");
     } finally {
       setBarayBusy(false);
+    }
+  };
+
+  const startBakongCheckout = async () => {
+    if (!token || !order) return;
+    setBakongBusy(true);
+    try {
+      const res = await fetchJson<{
+        data: {
+          qr?: string;
+          md5?: string;
+          expires_at?: string;
+          payment_transaction_id?: number;
+        };
+      }>("/cashier/ordering/bakong/payment-intent", token, {
+        method: "POST",
+        body: JSON.stringify({ order_id: order.id }),
+      });
+      bakongResumeStartedRef.current = true;
+      setBakongQr(res.data?.qr ?? null);
+      setBakongExpiry(res.data?.expires_at ?? null);
+      await load();
+      await watchBakongSettlement(order.id);
+    } catch (e) {
+      notifyError(e instanceof Error ? e.message : "Could not start Bakong payment");
+    } finally {
+      setBakongBusy(false);
     }
   };
 
@@ -364,7 +479,7 @@ export default function OrderDetailPage() {
                   </p>
                   <button
                     type="button"
-                    disabled={barayBusy || barayWaiting}
+                    disabled={barayBusy || barayWaiting || bakongBusy || bakongWaiting}
                     onClick={() => void startBarayCheckout()}
                     className="brand-primary-button mt-4 w-full rounded-full px-4 py-3.5 text-sm font-bold disabled:opacity-50 sm:w-auto sm:min-w-[14rem]"
                   >
@@ -391,6 +506,55 @@ export default function OrderDetailPage() {
                 </section>
 
                 <section className="brand-card mt-8 rounded-[1.75rem] p-6">
+                  <h2 className="text-lg font-semibold text-[var(--text)]">Pay with Bakong (KHQR)</h2>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    Scan the QR code with your Bakong-supported banking app (ABA, ACLEDA, Wing, etc.).
+                    We detect payment automatically.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={bakongBusy || bakongWaiting || barayBusy || barayWaiting}
+                    onClick={() => void startBakongCheckout()}
+                    className="brand-primary-button mt-4 w-full rounded-full px-4 py-3.5 text-sm font-bold disabled:opacity-50 sm:w-auto sm:min-w-[14rem]"
+                  >
+                    {bakongBusy ? "Generating…" : bakongWaiting ? "Waiting for payment…" : "Pay with Bakong (KHQR)"}
+                  </button>
+                  {bakongWaiting && (
+                    <div className="mt-4 space-y-4">
+                      {bakongQr && (
+                        <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-white p-6">
+                          <QRCodeSVG value={bakongQr} size={220} />
+                          {bakongExpiry && (
+                            <p className="text-xs text-[var(--text-muted)]">
+                              Expires {new Date(bakongExpiry).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-[var(--text)]">
+                          <span className="font-medium text-[var(--text)]">Checking payment…</span>{" "}
+                          {bakongQr
+                            ? "Scan the QR above with your banking app."
+                            : "We are checking for your payment."}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearBakongTimers();
+                            setBakongQr(null);
+                            notifySuccess("Stopped waiting — you can check status below or pay again.");
+                          }}
+                          className="brand-secondary-button shrink-0 rounded-full px-3 py-2 text-sm font-bold"
+                        >
+                          Stop waiting
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                <section className="brand-card mt-8 rounded-[1.75rem] p-6">
                   <h2 className="text-lg font-semibold text-[var(--text)]">Other payment options</h2>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
                     Reserve cash, wallet, or card for in-store handling. If a payment is already pending, finish or expire it
@@ -402,7 +566,7 @@ export default function OrderDetailPage() {
                       <button
                         key={m}
                         type="button"
-                        disabled={payBusy !== null || barayWaiting}
+                        disabled={payBusy !== null || barayWaiting || bakongWaiting}
                         onClick={() => initiatePayment(m)}
                         className="brand-secondary-button rounded-full px-4 py-2 text-sm font-bold capitalize disabled:opacity-50"
                       >
@@ -425,6 +589,11 @@ export default function OrderDetailPage() {
                             {tx.note === "baray" && (
                               <span className="ml-1 rounded bg-[var(--primary-soft)] px-1.5 text-xs font-medium text-[var(--primary-dark)]">
                                 Baray
+                              </span>
+                            )}
+                            {tx.note === "bakong" && (
+                              <span className="ml-1 rounded bg-[var(--primary-soft)] px-1.5 text-xs font-medium text-[var(--primary-dark)]">
+                                Bakong
                               </span>
                             )}
                             <span className="mx-2 text-[var(--border)]">·</span>
