@@ -6,6 +6,7 @@ import { apiErrorMessage, apiUrl, getPublicMenuUrl } from "@/lib/api";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notify, notifyError, notifyInfo } from "@/lib/notify";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BakongPaymentModal } from "@/components/payments/bakong-payment-modal";
 import { loadPersistedCartLines, persistCartLines, setCartLineQty as applyCartLineQty } from "./cart";
 import { MenuCartSidebar } from "./menu-cart-sidebar";
 import { MenuCategoryList } from "./menu-category-list";
@@ -35,6 +36,13 @@ export function MenuOrderInner() {
   const [detailModifierQty, setDetailModifierQty] = useState(1);
   const [couponOptions, setCouponOptions] = useState<{ code: string; discount_percent: number }[]>([]);
   const [couponCodeInput, setCouponCodeInput] = useState("");
+  // Bakong KHQR modal — opened after a successful Place order so the customer can scan + pay
+  // without leaving the menu. Same flow inside the Telegram Mini App and the web.
+  const [pendingPayment, setPendingPayment] = useState<{
+    orderId: number;
+    receiptNumber: string | null;
+    totalKhr: number | null;
+  } | null>(null);
 
   useEffect(() => {
     const lines = loadPersistedCartLines();
@@ -209,7 +217,24 @@ export function MenuOrderInner() {
       setCartLines([]);
       setCouponCodeInput("");
       setCartSidebarOpen(false);
-      notify({ type: "ok", text: data?.message || "Order placed." });
+      const placedOrder = (data?.data ?? {}) as {
+        id?: number;
+        receipt_number?: string | null;
+        total_price?: number | null;
+        status?: string | null;
+      };
+      const newOrderId = Number(placedOrder?.id ?? 0);
+      const orderStatus = String(placedOrder?.status ?? "").toLowerCase();
+      // If the API ever creates the order already paid (e.g. zero-total comp), skip the QR modal.
+      if (Number.isFinite(newOrderId) && newOrderId > 0 && orderStatus === "awaiting_payment") {
+        setPendingPayment({
+          orderId: newOrderId,
+          receiptNumber: placedOrder?.receipt_number ?? null,
+          totalKhr: placedOrder?.total_price != null ? Number(placedOrder.total_price) : null,
+        });
+      } else {
+        notify({ type: "ok", text: data?.message || "Order placed." });
+      }
     } catch (e) {
       notifyError(e instanceof Error ? e.message : "Order failed");
     } finally {
@@ -261,6 +286,27 @@ export function MenuOrderInner() {
           setQtySimple={setQtySimple}
         />
       ) : null}
+
+      <BakongPaymentModal
+        orderId={pendingPayment?.orderId ?? null}
+        receiptNumber={pendingPayment?.receiptNumber ?? null}
+        totalKhrFallback={pendingPayment?.totalKhr ?? null}
+        onClose={() => {
+          // Customer dismissed without paying — the order remains in `awaiting_payment` on
+          // the server. They can resume from /orders/<id> later.
+          if (pendingPayment) {
+            notify({
+              type: "ok",
+              text: `Order #${pendingPayment.receiptNumber ?? pendingPayment.orderId} saved. Pay any time from your orders.`,
+            });
+          }
+          setPendingPayment(null);
+        }}
+        onPaid={() => {
+          notify({ type: "ok", text: "Order placed. Payment received." });
+          setPendingPayment(null);
+        }}
+      />
     </div>
   );
 }

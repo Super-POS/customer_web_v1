@@ -3,12 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SignInGate } from "@/components/sign-in-gate";
+import { BakongDepositModal } from "@/components/payments/bakong-deposit-modal";
 import { formatUsd, formatUsdFromKhr } from "@/lib/api";
+import {
+  abandonAllPendingBakongDeposits,
+  pollCustomerBakongDepositState,
+} from "@/lib/bakong-client";
 import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
+
+const BAKONG_DEPOSIT_POLL_MS = 3_000;
 
 type WalletTx = {
   id: number;
@@ -36,8 +43,14 @@ function statusBadgeClass(status?: string): string {
   return "bg-[var(--primary-soft)] text-[var(--primary-dark)] ring-[var(--border)]";
 }
 
-const BARAY_DEPOSIT_POLL_MS = 1_500;
-const BARAY_DEPOSIT_TIMEOUT_MS = 5 * 60_000;
+function isPendingBakongDeposit(tx: WalletTx): boolean {
+  const note = String(tx.note ?? "").toLowerCase();
+  return (
+    String(tx.type ?? "").toLowerCase() === "deposit" &&
+    String(tx.status ?? "").toLowerCase() === "pending" &&
+    (note === "bakong" || note.startsWith("bakong|") || note.startsWith("bakong\n"))
+  );
+}
 
 export default function WalletPage() {
   const { khrPerUsd } = useExchangeRate();
@@ -48,12 +61,12 @@ export default function WalletPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalPage: 1, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [depositWaiting, setDepositWaiting] = useState(false);
   const [amount, setAmount] = useState("");
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** When set, opens the Bakong deposit modal for this USD amount. */
+  const [pendingDepositUsd, setPendingDepositUsd] = useState<number | null>(null);
+  const [cancellingDeposit, setCancellingDeposit] = useState(false);
   const resumePollStartedRef = useRef(false);
+  const resumePollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const limit = 10;
 
@@ -87,64 +100,6 @@ export default function WalletPage() {
     }
   }, [token, page]);
 
-  const clearDepositTimers = useCallback(() => {
-    if (pollTimerRef.current != null) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (timeoutTimerRef.current != null) {
-      clearTimeout(timeoutTimerRef.current);
-      timeoutTimerRef.current = null;
-    }
-    setDepositWaiting(false);
-  }, []);
-
-  const watchDepositSettlement = useCallback(
-    async (walletTransactionId: number) => {
-      if (!token) return;
-      clearDepositTimers();
-      setDepositWaiting(true);
-
-      timeoutTimerRef.current = setTimeout(() => {
-        clearDepositTimers();
-        notifyError("Still waiting for Baray confirmation. Refresh the wallet in a moment.");
-      }, BARAY_DEPOSIT_TIMEOUT_MS);
-
-      const tick = async () => {
-        try {
-          const res = await fetchJson<{
-            data?: {
-              wallet_transaction_status?: string;
-              balance?: number;
-            };
-          }>(
-            `/customer/wallet/deposit/${walletTransactionId}/payment-state`,
-            token,
-          );
-          const status = String(res.data?.wallet_transaction_status ?? "").toLowerCase();
-          if (status === "approved") {
-            clearDepositTimers();
-            setBalance(Number(res.data?.balance ?? 0));
-            setAmount("");
-            notifySuccess("Deposit received. Your balance has been updated.");
-            await loadWallet();
-            await loadHistory();
-          } else if (status === "rejected") {
-            clearDepositTimers();
-            notifyError("Deposit was rejected or expired.");
-            await loadHistory();
-          }
-        } catch {
-          /* keep polling while Baray/webhook settles */
-        }
-      };
-
-      await tick();
-      pollTimerRef.current = setInterval(() => void tick(), BARAY_DEPOSIT_POLL_MS);
-    },
-    [token, clearDepositTimers, loadWallet, loadHistory],
-  );
-
   useEffect(() => {
     if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client data fetch on mount
@@ -161,64 +116,89 @@ export default function WalletPage() {
     if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) router.replace("/");
   }, [router]);
 
+  /** After refresh: keep polling a pending Bakong deposit (no new QR — avoids duplicate intent). */
   useEffect(() => {
-    return () => {
-      clearDepositTimers();
-    };
-  }, [clearDepositTimers]);
-
-  useEffect(() => {
-    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || depositWaiting || resumePollStartedRef.current)
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || pendingDepositUsd != null) {
       return;
-    const pendingBarayDeposit = history.find(
-      (tx) =>
-        String(tx.type ?? "").toLowerCase() === "deposit" &&
-        String(tx.status ?? "").toLowerCase() === "pending" &&
-        String(tx.note ?? "").toLowerCase().startsWith("baray"),
-    );
-    if (pendingBarayDeposit) {
-      resumePollStartedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resume Baray deposit poll after refresh
-      void watchDepositSettlement(pendingBarayDeposit.id);
     }
-  }, [token, loading, depositWaiting, history, watchDepositSettlement]);
+    const pending = history.find(isPendingBakongDeposit);
+    if (!pending || resumePollStartedRef.current) return;
 
-  const submitDeposit = async (e: React.FormEvent) => {
+    resumePollStartedRef.current = true;
+    const walletTxId = pending.id;
+
+    const tick = async () => {
+      const outcome = await pollCustomerBakongDepositState(token, walletTxId);
+      if (outcome === "paid") {
+        if (resumePollTimerRef.current != null) {
+          clearInterval(resumePollTimerRef.current);
+          resumePollTimerRef.current = null;
+        }
+        notifySuccess("Deposit received. Your balance has been updated.");
+        await loadWallet();
+        await loadHistory();
+        resumePollStartedRef.current = false;
+      } else if (outcome === "cancelled") {
+        if (resumePollTimerRef.current != null) {
+          clearInterval(resumePollTimerRef.current);
+          resumePollTimerRef.current = null;
+        }
+        await loadHistory();
+        resumePollStartedRef.current = false;
+      }
+    };
+
+    void tick();
+    resumePollTimerRef.current = setInterval(() => void tick(), BAKONG_DEPOSIT_POLL_MS);
+
+    return () => {
+      if (resumePollTimerRef.current != null) {
+        clearInterval(resumePollTimerRef.current);
+        resumePollTimerRef.current = null;
+      }
+    };
+  }, [token, loading, history, pendingDepositUsd, loadWallet, loadHistory]);
+
+  useEffect(() => {
+    resumePollStartedRef.current = false;
+  }, [page]);
+
+  const hasPendingBakongDeposit = history.some(isPendingBakongDeposit);
+
+  const submitDeposit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) {
       notifyError("Enter a positive amount.");
       return;
     }
-    setSubmitting(true);
+    if (hasPendingBakongDeposit) {
+      notifyError("Cancel your pending deposit before starting a new one.");
+      return;
+    }
+    setPendingDepositUsd(n);
+  };
+
+  const cancelPendingDeposit = async () => {
+    if (!token) return;
+    setCancellingDeposit(true);
     try {
-      const res = await fetchJson<{
-        message?: string;
-        data?: { url?: string; wallet_transaction_id?: number; expires_at?: string };
-      }>("/customer/wallet/deposit/baray/intent", token, {
-        method: "POST",
-        body: JSON.stringify({ amount: n }),
-      });
-      const url = typeof res.data?.url === "string" ? res.data.url.trim() : "";
-      if (!url) {
-        throw new Error("Failed to load Baray payment page.");
+      await abandonAllPendingBakongDeposits(token);
+      resumePollStartedRef.current = false;
+      if (resumePollTimerRef.current != null) {
+        clearInterval(resumePollTimerRef.current);
+        resumePollTimerRef.current = null;
       }
-      const walletTransactionId = Number(res.data?.wallet_transaction_id);
-      if (!Number.isFinite(walletTransactionId)) {
-        throw new Error("Failed to start deposit watcher.");
-      }
-      resumePollStartedRef.current = true;
-      window.open(url, "_blank", "noopener,noreferrer");
-      notifySuccess(res.message ?? "Payment page opened. Complete the QR transfer in that tab.");
+      notifySuccess("Pending deposit cancelled.");
       await loadHistory();
-      await watchDepositSettlement(walletTransactionId);
     } catch (e) {
-      notifyError(e instanceof Error ? e.message : "Request failed");
+      notifyError(e instanceof Error ? e.message : "Could not cancel deposit.");
     } finally {
-      setSubmitting(false);
+      setCancellingDeposit(false);
     }
   };
+
+  const modalAmount = pendingDepositUsd;
 
   if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) {
     return (
@@ -241,14 +221,14 @@ export default function WalletPage() {
                 {formatUsdFromKhr(balance, khrPerUsd)}
               </p>
               <p className="mt-4 max-w-md text-sm leading-relaxed text-white/68">
-                Use your wallet for faster checkout, Baray QR deposits, and smoother counter pickup.
+                Use your wallet for faster checkout and Bakong KHQR top-ups from web or Telegram.
               </p>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
                 {[
-                  ["Top up", "Baray QR"],
+                  ["Top up", "Bakong KHQR"],
                   ["History", `${pagination.total} entries`],
-                  ["Status", submitting ? "Opening" : "Ready"],
+                  ["Status", modalAmount != null ? "QR open" : hasPendingBakongDeposit ? "Waiting" : "Ready"],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/48">{label}</p>
@@ -262,11 +242,28 @@ export default function WalletPage() {
           <form onSubmit={submitDeposit} className="brand-card rounded-[2rem] p-6">
             <p className="brand-kicker">Instant top up</p>
             <h2 className="mt-2 font-[family-name:var(--font-oswald)] text-2xl font-bold text-[var(--text)]">
-              Deposit with QR
+              Deposit with KHQR
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
-              Generate a Baray QR and keep this page open while your balance refreshes after confirmation.
+              Enter an amount and scan the Bakong QR with your banking app. Your balance updates automatically after payment.
             </p>
+
+            {hasPendingBakongDeposit && modalAmount == null && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                <p className="font-bold">You have a pending Bakong deposit</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+                  Complete payment in your bank app, or cancel below to start a new top-up.
+                </p>
+                <button
+                  type="button"
+                  disabled={cancellingDeposit}
+                  onClick={() => void cancelPendingDeposit()}
+                  className="mt-3 w-full rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-black text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
+                >
+                  {cancellingDeposit ? "Cancelling…" : "Cancel pending deposit"}
+                </button>
+              </div>
+            )}
 
             <div className="mt-5 space-y-4">
               <div>
@@ -277,7 +274,8 @@ export default function WalletPage() {
                   step={0.01}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="brand-input w-full rounded-2xl px-4 py-3 text-lg font-bold tabular-nums text-[var(--text)]"
+                  disabled={modalAmount != null}
+                  className="brand-input w-full rounded-2xl px-4 py-3 text-lg font-bold tabular-nums text-[var(--text)] disabled:opacity-60"
                   placeholder="25.00"
                   required
                 />
@@ -286,22 +284,27 @@ export default function WalletPage() {
                     <button
                       key={n}
                       type="button"
+                      disabled={modalAmount != null}
                       onClick={() => setAmount(String(n))}
-                      className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-xs font-black text-[var(--primary-dark)] transition hover:border-[var(--primary)] hover:bg-white"
+                      className="rounded-full border border-[var(--border)] bg-white/70 px-3 py-2 text-xs font-black text-[var(--primary-dark)] transition hover:border-[var(--primary)] hover:bg-white disabled:opacity-50"
                     >
                       {formatUsd(n)}
                     </button>
                   ))}
                 </div>
-              </div>             
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={submitting || depositWaiting}
+              disabled={modalAmount != null || hasPendingBakongDeposit}
               className="brand-primary-button mt-5 w-full rounded-full py-3.5 text-sm font-black disabled:opacity-50"
             >
-              {submitting ? "Opening Baray..." : depositWaiting ? "Waiting for payment..." : "Deposit"}
+              {modalAmount != null
+                ? "QR open…"
+                : hasPendingBakongDeposit
+                  ? "Cancel pending deposit first"
+                  : "Deposit with Bakong"}
             </button>
           </form>
         </div>
@@ -340,6 +343,11 @@ export default function WalletPage() {
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${statusBadgeClass(tx.status)}`}>
                           {formatTxText(tx.status)}
                         </span>
+                        {isPendingBakongDeposit(tx) && (
+                          <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--primary-dark)]">
+                            Bakong
+                          </span>
+                        )}
                       </div>
                       {tx.created_at && (
                         <span className="mt-1 block text-xs text-[var(--text-muted)]">
@@ -380,6 +388,22 @@ export default function WalletPage() {
           </section>
         </div>
       </div>
+
+      <BakongDepositModal
+        amountUsd={modalAmount}
+        onClose={() => {
+          setPendingDepositUsd(null);
+          resumePollStartedRef.current = false;
+          void loadHistory();
+        }}
+        onPaid={() => {
+          setPendingDepositUsd(null);
+          setAmount("");
+          resumePollStartedRef.current = false;
+          void loadWallet();
+          void loadHistory();
+        }}
+      />
     </SignInGate>
   );
 }
