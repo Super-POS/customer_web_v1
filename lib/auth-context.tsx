@@ -239,6 +239,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         const body: unknown = await res.json().catch(() => ({}));
         if (!res.ok) {
+          // 4xx = API explicitly rejected this initData (wrong bot token, expired
+          // auth_date, malformed payload). Inside the Mini App, Telegram's signed
+          // initData is the source of truth — any cached token is for the wrong
+          // session, so drop it instead of letting the next API call 401 silently.
+          if (res.status >= 400 && res.status < 500) {
+            const reason = apiErrorMessage(body, "Telegram sign in failed");
+            const err = new Error(reason) as Error & { status?: number };
+            err.status = res.status;
+            throw err;
+          }
           throw new Error(apiErrorMessage(body, "Telegram sign in failed"));
         }
         const nextToken = (body as { token?: unknown }).token;
@@ -251,7 +261,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokenState(nextToken);
         setAuthError(null);
       } catch (e) {
-        if (!cancelled && !hadPreSession) {
+        if (cancelled) return;
+        const status = (e as { status?: number } | undefined)?.status;
+        const isClientRejected = typeof status === "number" && status >= 400 && status < 500;
+        if (isClientRejected) {
+          // API explicitly said "this Telegram session is invalid" — wipe any
+          // stale local/cloud JWT so the UI doesn't pretend the user is signed
+          // in. They'll see the `authError` banner in `<SignInGate />` instead.
+          localStorage.removeItem(STORAGE_KEY);
+          clearTelegramCloudToken();
+          setTokenState(null);
+          setAuthError(e instanceof Error ? e.message : "Telegram sign in failed");
+        } else if (!hadPreSession) {
+          // Transient network / 5xx with no prior session — fall through to the
+          // existing "Telegram session unavailable" UI.
           setAuthError(e instanceof Error ? e.message : "Telegram sign in failed");
         }
       } finally {

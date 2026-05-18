@@ -1,9 +1,58 @@
 import { normalizeModifierIds } from "./cart";
-import type { MenuCategory, MenuItem, ModifierGroupItem, ModifierOptionItem } from "./types";
+import type {
+  MenuCategory,
+  MenuItem,
+  MenuSizeItem,
+  MenuSizeKey,
+  ModifierGroupItem,
+  ModifierOptionItem,
+} from "./types";
 
 export function parsePriceDelta(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function numericPrice(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+const SIZE_ORDER: Record<MenuSizeKey, number> = { S: 0, M: 1, L: 2 };
+
+export function menuHasSizes(item: MenuItem | undefined | null): boolean {
+  if (!item) return false;
+  if (item.has_sizes !== undefined) return Boolean(item.has_sizes) && (item.sizes?.length ?? 0) > 0;
+  return (item.sizes?.length ?? 0) > 0;
+}
+
+export function sortedSizes(item: MenuItem | undefined | null): MenuSizeItem[] {
+  if (!item?.sizes?.length) return [];
+  return [...item.sizes].sort((a, b) => (SIZE_ORDER[a.size] ?? 99) - (SIZE_ORDER[b.size] ?? 99));
+}
+
+export function defaultSizeForItem(item: MenuItem | undefined | null): MenuSizeKey | undefined {
+  const list = sortedSizes(item);
+  if (list.length === 0) return undefined;
+  const m = list.find((s) => s.size === "M");
+  return (m ?? list[0]).size;
+}
+
+export function priceForSize(item: MenuItem | undefined | null, size: MenuSizeKey | undefined | null): number {
+  if (!item || !size) return 0;
+  const row = (item.sizes ?? []).find((s) => s.size === size);
+  return row ? numericPrice(row.price) : 0;
+}
+
+export function lowestSizePrice(item: MenuItem | undefined | null): number {
+  const list = sortedSizes(item);
+  if (list.length === 0) return 0;
+  let min = Number.POSITIVE_INFINITY;
+  for (const s of list) {
+    const p = numericPrice(s.price);
+    if (p > 0 && p < min) min = p;
+  }
+  return Number.isFinite(min) ? min : numericPrice(list[0].price);
 }
 
 export function getModifierGroupMeta(g: ModifierGroupItem): { sortOrder: number; isRequired: boolean } {
@@ -24,9 +73,25 @@ export function menuHasModifiers(item: MenuItem): boolean {
   return sortedModifierGroups(item).some((g) => (g.options?.length ?? 0) > 0);
 }
 
-export function lineUnitPrice(menu: MenuItem | undefined, modifierIds: number[]): number {
+/**
+ * Compute the unit price for a cart line / detail view.
+ *
+ * Sized items keep their per-size prices on `menu.sizes`; their `unit_price`
+ * column is often 0. When `size` is provided we read the size price, otherwise
+ * we fall back to the cheapest size (used for "from $X" labels on the list).
+ */
+export function lineUnitPrice(
+  menu: MenuItem | undefined | null,
+  modifierIds: number[],
+  size?: MenuSizeKey | null,
+): number {
   if (!menu) return 0;
-  const base = Number(menu.unit_price ?? 0);
+  let base: number;
+  if (menuHasSizes(menu)) {
+    base = size ? priceForSize(menu, size) : lowestSizePrice(menu);
+  } else {
+    base = numericPrice(menu.unit_price);
+  }
   const optById = new Map<number, ModifierOptionItem>();
   for (const g of sortedModifierGroups(menu)) {
     for (const o of g.options || []) {

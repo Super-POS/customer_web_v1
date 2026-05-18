@@ -3,20 +3,24 @@
 import { formatUsdFromKhr, mediaUrl } from "@/lib/api";
 import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifyError, notifySuccess } from "@/lib/notify";
+import { useEffect, useMemo, useState } from "react";
 import { addOrMergeCartLine, simpleLineQty } from "./cart";
 import { CoffeePlaceholder } from "./coffee-placeholder";
 import { IconClose } from "./icons";
 import {
+  defaultSizeForItem,
   getModifierGroupMeta,
   lineUnitPrice,
   menuHasModifiers,
+  menuHasSizes,
   parsePriceDelta,
   selectionsToModifierIds,
   sortedModifierGroups,
+  sortedSizes,
   validateModifierSelections,
 } from "./menu-helpers";
 import { QtyStepper } from "./qty-stepper";
-import type { CartLine, ItemDetailState } from "./types";
+import type { CartLine, ItemDetailState, MenuSizeKey } from "./types";
 import type { Dispatch, SetStateAction } from "react";
 
 export type MenuItemDetailSidebarProps = {
@@ -44,6 +48,15 @@ export function MenuItemDetailSidebar({
 }: MenuItemDetailSidebarProps) {
   const item = active.item;
   const { khrPerUsd } = useExchangeRate();
+  const hasSizes = menuHasSizes(item);
+  const sizes = useMemo(() => sortedSizes(item), [item]);
+  const [selectedSize, setSelectedSize] = useState<MenuSizeKey | undefined>(() =>
+    hasSizes ? defaultSizeForItem(item) : undefined,
+  );
+
+  useEffect(() => {
+    setSelectedSize(menuHasSizes(item) ? defaultSizeForItem(item) : undefined);
+  }, [item]);
 
   return (
     <div className="fixed inset-0 z-[80]" role="presentation">
@@ -93,7 +106,19 @@ export function MenuItemDetailSidebar({
           </h2>
           {item.code && <p className="mt-2 font-mono text-[12px] tracking-[0.06em] text-[var(--text-muted)]">{item.code}</p>}
           <p className="mt-4 text-2xl font-bold tabular-nums text-[var(--primary)]">
-            {menuHasModifiers(item) ? (
+            {hasSizes ? (
+              <>
+                {formatUsdFromKhr(
+                  lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections), selectedSize ?? null),
+                  khrPerUsd,
+                )}{" "}
+                <span className="text-sm font-normal text-[var(--text-muted)]">each</span>
+                <span className="block pt-1 text-sm font-normal text-[var(--text-muted)]">
+                  Size {selectedSize ?? "—"}
+                  {menuHasModifiers(item) ? " plus selected options" : ""}
+                </span>
+              </>
+            ) : menuHasModifiers(item) ? (
               <>
                 {formatUsdFromKhr(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)), khrPerUsd)}{" "}
                 <span className="text-sm font-normal text-[var(--text-muted)]">each</span>
@@ -109,7 +134,38 @@ export function MenuItemDetailSidebar({
             )}
           </p>
 
-          {menuHasModifiers(item) ? (
+          {hasSizes ? (
+            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--page)] p-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Size <span className="text-red-600">*</span>
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {sizes.map((s) => {
+                  const checked = selectedSize === s.size;
+                  return (
+                    <label
+                      key={s.id}
+                      className="flex cursor-pointer flex-col items-center gap-1 rounded-xl border border-transparent px-3 py-2.5 text-center text-[13px] transition hover:bg-black/[0.04] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]"
+                    >
+                      <input
+                        type="radio"
+                        name={`size-${item.id}`}
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() => setSelectedSize(s.size)}
+                      />
+                      <span className="text-base font-semibold text-[var(--text)]">{s.size}</span>
+                      <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
+                        {formatUsdFromKhr(Number(s.price ?? 0), khrPerUsd)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {menuHasModifiers(item) || hasSizes ? (
             <div className="mt-8 space-y-6">
               {sortedModifierGroups(item).map((g) => {
                 const opts = [...(g.options || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -168,12 +224,23 @@ export function MenuItemDetailSidebar({
                 <p className="mt-5 border-t border-[var(--border)] pt-4 text-[13px] text-[var(--text-muted)]">
                   Line total:{" "}
                   <span className="font-bold tabular-nums text-[var(--text)]">
-                    {formatUsdFromKhr(lineUnitPrice(item, selectionsToModifierIds(item, modifierSelections)) * detailModifierQty, khrPerUsd)}
+                    {formatUsdFromKhr(
+                      lineUnitPrice(
+                        item,
+                        selectionsToModifierIds(item, modifierSelections),
+                        hasSizes ? selectedSize ?? null : null,
+                      ) * detailModifierQty,
+                      khrPerUsd,
+                    )}
                   </span>
                 </p>
                 <button
                   type="button"
                   onClick={() => {
+                    if (hasSizes && !selectedSize) {
+                      notifyError("Please choose a size.");
+                      return;
+                    }
                     const err = validateModifierSelections(item, modifierSelections);
                     if (err) {
                       notifyError(err);
@@ -185,6 +252,7 @@ export function MenuItemDetailSidebar({
                         menu_id: item.id,
                         quantity: detailModifierQty,
                         modifier_option_ids: ids,
+                        ...(hasSizes && selectedSize ? { size: selectedSize } : {}),
                       }),
                     );
                     notifySuccess("Added to cart.");

@@ -1,12 +1,20 @@
-import type { CartLine } from "./types";
+import type { CartLine, MenuSizeKey } from "./types";
 
 export function normalizeModifierIds(ids: number[]): number[] {
   return [...new Set(ids.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
 }
 
-export function cartLineKey(menuId: number, modifierIds: number[]): string {
+function normalizeSize(size: MenuSizeKey | undefined | null): MenuSizeKey | "" {
+  return size === "S" || size === "M" || size === "L" ? size : "";
+}
+
+export function cartLineKey(
+  menuId: number,
+  modifierIds: number[],
+  size?: MenuSizeKey | null,
+): string {
   const s = normalizeModifierIds(modifierIds);
-  return `${menuId}:${s.join(",")}`;
+  return `${menuId}|${normalizeSize(size)}|${s.join(",")}`;
 }
 
 const MENU_CART_STORAGE_KEY_V2 = "club54-order-cart-v2";
@@ -26,16 +34,23 @@ function isCartLineRow(x: unknown): x is CartLine {
   return true;
 }
 
+function readSize(raw: unknown): MenuSizeKey | undefined {
+  return raw === "S" || raw === "M" || raw === "L" ? raw : undefined;
+}
+
 function sanitizePersistedCartLines(raw: unknown): CartLine[] {
   if (!Array.isArray(raw)) return [];
   const out: CartLine[] = [];
   for (const x of raw) {
     if (!isCartLineRow(x)) continue;
-    out.push({
+    const size = readSize((x as { size?: unknown }).size);
+    const line: CartLine = {
       menu_id: Math.floor(Number(x.menu_id)),
       quantity: Math.floor(Number(x.quantity)),
       modifier_option_ids: normalizeModifierIds(x.modifier_option_ids as number[]),
-    });
+    };
+    if (size) line.size = size;
+    out.push(line);
   }
   return out;
 }
@@ -85,27 +100,45 @@ export function persistCartLines(lines: CartLine[]): void {
 
 export function addOrMergeCartLine(lines: CartLine[], line: CartLine): CartLine[] {
   const mods = normalizeModifierIds(line.modifier_option_ids);
-  const key = cartLineKey(line.menu_id, mods);
-  const idx = lines.findIndex((l) => cartLineKey(l.menu_id, l.modifier_option_ids) === key);
-  if (idx < 0) return [...lines, { ...line, modifier_option_ids: mods, quantity: Math.floor(line.quantity) }];
-  const next = [...lines];
-  next[idx] = {
-    ...next[idx],
-    quantity: Math.floor(next[idx].quantity + line.quantity),
+  const size = readSize(line.size);
+  const key = cartLineKey(line.menu_id, mods, size ?? null);
+  const idx = lines.findIndex((l) => cartLineKey(l.menu_id, l.modifier_option_ids, l.size ?? null) === key);
+  if (idx < 0) {
+    const next: CartLine = {
+      menu_id: line.menu_id,
+      modifier_option_ids: mods,
+      quantity: Math.floor(line.quantity),
+    };
+    if (size) next.size = size;
+    return [...lines, next];
+  }
+  const out = [...lines];
+  out[idx] = {
+    ...out[idx],
+    quantity: Math.floor(out[idx].quantity + line.quantity),
   };
-  return next;
+  return out;
 }
 
-export function setCartLineQty(lines: CartLine[], menuId: number, modifierIds: number[], qty: number): CartLine[] {
+export function setCartLineQty(
+  lines: CartLine[],
+  menuId: number,
+  modifierIds: number[],
+  qty: number,
+  size?: MenuSizeKey | null,
+): CartLine[] {
   const mods = normalizeModifierIds(modifierIds);
-  const key = cartLineKey(menuId, mods);
-  const idx = lines.findIndex((l) => cartLineKey(l.menu_id, l.modifier_option_ids) === key);
+  const sz = readSize(size);
+  const key = cartLineKey(menuId, mods, sz ?? null);
+  const idx = lines.findIndex((l) => cartLineKey(l.menu_id, l.modifier_option_ids, l.size ?? null) === key);
   if (qty <= 0) {
     if (idx < 0) return lines;
     return lines.filter((_, i) => i !== idx);
   }
   if (idx < 0) {
-    return [...lines, { menu_id: menuId, quantity: Math.floor(qty), modifier_option_ids: mods }];
+    const next: CartLine = { menu_id: menuId, quantity: Math.floor(qty), modifier_option_ids: mods };
+    if (sz) next.size = sz;
+    return [...lines, next];
   }
   const next = [...lines];
   next[idx] = { ...next[idx], quantity: Math.floor(qty) };
@@ -117,6 +150,8 @@ export function totalQtyForMenu(lines: CartLine[], menuId: number): number {
 }
 
 export function simpleLineQty(lines: CartLine[], menuId: number): number {
-  const line = lines.find((l) => l.menu_id === menuId && l.modifier_option_ids.length === 0);
+  const line = lines.find(
+    (l) => l.menu_id === menuId && l.modifier_option_ids.length === 0 && !l.size,
+  );
   return line ? line.quantity : 0;
 }

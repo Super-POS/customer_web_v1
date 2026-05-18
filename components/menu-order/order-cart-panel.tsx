@@ -6,7 +6,7 @@ import { cartLineKey } from "./cart";
 import { findMenuById, lineUnitPrice, modifierSummaryText, previewCouponDiscount } from "./menu-helpers";
 import { IconTrash } from "./icons";
 import { QtyStepper } from "./qty-stepper";
-import type { CartLine, MenuCategory } from "./types";
+import type { CartLine, MenuCategory, MenuSizeKey } from "./types";
 
 export function OrderCartPanel({
   menus,
@@ -32,7 +32,7 @@ export function OrderCartPanel({
   placingOrder: boolean;
   token: string | null;
   placeOrder: () => void | Promise<void>;
-  setLineQty: (menuId: number, modifierIds: number[], qty: number) => void;
+  setLineQty: (menuId: number, modifierIds: number[], qty: number, size?: MenuSizeKey | null) => void;
   couponCodeInput?: string;
   onCouponCodeInputChange?: (value: string) => void;
   matchedActiveCoupon?: { code: string; discount_percent: number } | null;
@@ -68,10 +68,11 @@ export function OrderCartPanel({
         const menu = findMenuById(menus, pid);
         const name = menu?.name || `Item #${pid}`;
         const mods = line.modifier_option_ids;
+        const size = line.size ?? null;
         const summary = modifierSummaryText(menu, mods);
-        const u = lineUnitPrice(menu, mods);
+        const u = lineUnitPrice(menu, mods, size);
         const q = line.quantity;
-        const rowKey = cartLineKey(pid, mods);
+        const rowKey = cartLineKey(pid, mods, size);
         return (
           <div
             key={rowKey}
@@ -84,12 +85,17 @@ export function OrderCartPanel({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold leading-snug text-[var(--text)]">{name}</p>
+                {size ? (
+                  <span className="mt-1 inline-flex items-center rounded-full bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary)]">
+                    Size {size}
+                  </span>
+                ) : null}
                 {summary ? <p className="mt-1 text-[11px] leading-snug text-[var(--text-muted)]">{summary}</p> : null}
               </div>
               <button
                 type="button"
                 disabled={placingOrder}
-                onClick={() => setLineQty(pid, mods, 0)}
+                onClick={() => setLineQty(pid, mods, 0, size)}
                 aria-label={`Remove ${name} from cart`}
                 className="shrink-0 rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] hover:text-[var(--primary)] disabled:pointer-events-none disabled:opacity-40"
               >
@@ -100,7 +106,7 @@ export function OrderCartPanel({
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Qty</p>
                 <div className="mt-1.5">
-                  <QtyStepper value={q} disabled={placingOrder} onChange={(n) => setLineQty(pid, mods, n)} />
+                  <QtyStepper value={q} disabled={placingOrder} onChange={(n) => setLineQty(pid, mods, n, size)} />
                 </div>
               </div>
               <div className="text-right">

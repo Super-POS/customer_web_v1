@@ -5,7 +5,7 @@ import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { notifySuccess } from "@/lib/notify";
 import { totalQtyForMenu } from "./cart";
 import { CoffeePlaceholder } from "./coffee-placeholder";
-import { menuHasModifiers } from "./menu-helpers";
+import { lowestSizePrice, menuHasModifiers, menuHasSizes } from "./menu-helpers";
 import type { CartLine, MenuCategory, MenuItem } from "./types";
 
 export type MenuCategoryListProps = {
@@ -35,8 +35,13 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
               {group.menus.map((p) => {
                 const img = mediaUrl(p.image);
                 const hasMod = menuHasModifiers(p);
+                const hasSizes = menuHasSizes(p);
+                /** Sized items keep their real price on `menu.sizes`; show the cheapest with a "from" hint. */
+                const displayPrice = hasSizes ? lowestSizePrice(p) : p.unit_price;
                 const qty = totalQtyForMenu(cartLines, p.id);
                 const hasQty = qty > 0;
+                /** Sized items must always open the detail sidebar so the customer picks S/M/L. */
+                const requiresChoice = hasMod || hasSizes;
                 return (
                   <li key={p.id}>
                     <div
@@ -75,7 +80,10 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
                             <p className="mt-1 font-mono text-[9px] tracking-[0.06em] text-[var(--text-muted)] sm:text-[10px]">{p.code}</p>
                           )}
                           <p className="mt-2 text-sm font-bold tabular-nums tracking-tight text-[var(--primary)] sm:text-base">
-                            {formatUsdFromKhr(p.unit_price, khrPerUsd)}
+                            {hasSizes ? (
+                              <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">from</span>
+                            ) : null}
+                            {formatUsdFromKhr(displayPrice, khrPerUsd)}
                           </p>
                         </div>
                         <div
@@ -86,7 +94,7 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
                           <button
                             type="button"
                             onClick={() => {
-                              if (hasMod) {
+                              if (requiresChoice) {
                                 onOpenItem(p, group.name);
                                 return;
                               }
@@ -95,7 +103,7 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
                             }}
                             className="brand-primary-button flex w-full items-center justify-center rounded-full px-2 py-2 text-[11px] font-bold sm:px-4 sm:py-2.5 sm:text-sm"
                           >
-                            {hasMod ? "Add to cart" : hasQty ? `Add again (${qty} in cart)` : "Add to cart"}
+                            {hasSizes ? "Choose size" : hasMod ? "Add to cart" : hasQty ? `Add again (${qty} in cart)` : "Add to cart"}
                           </button>
                         </div>
                       </div>

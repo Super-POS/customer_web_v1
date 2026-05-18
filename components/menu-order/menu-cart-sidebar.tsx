@@ -4,7 +4,7 @@ import { formatUsdFromKhr } from "@/lib/api";
 import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { IconClose } from "./icons";
 import { OrderCartPanel } from "./order-cart-panel";
-import type { CartLine, MenuCategory } from "./types";
+import type { CartLine, MenuCategory, MenuSizeKey } from "./types";
 
 export function MenuCartSidebar({
   open,
@@ -32,7 +32,7 @@ export function MenuCartSidebar({
   placingOrder: boolean;
   token: string | null;
   placeOrder: () => void | Promise<void>;
-  setLineQty: (menuId: number, modifierIds: number[], qty: number) => void;
+  setLineQty: (menuId: number, modifierIds: number[], qty: number, size?: MenuSizeKey | null) => void;
   couponCodeInput: string;
   onCouponCodeInputChange: (value: string) => void;
   matchedActiveCoupon: { code: string; discount_percent: number } | null;

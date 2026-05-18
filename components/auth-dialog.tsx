@@ -1,15 +1,35 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
 import { apiErrorMessage, apiUrl } from "@/lib/api";
 import { notifyError } from "@/lib/notify";
 import { BrandLogo } from "./brand-logo";
 
+/** Username (without @) of the bot configured with Telegram → /setdomain for this site. */
+const TELEGRAM_LOGIN_BOT = (process.env.NEXT_PUBLIC_TELEGRAM_LOGIN_BOT || "").trim();
+const TELEGRAM_AUTH_CALLBACK = "__club54OnTelegramAuth";
+
+type TelegramLoginPayload = {
+  id: number;
+  auth_date: number;
+  hash: string;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+};
+
+declare global {
+  interface Window {
+    [TELEGRAM_AUTH_CALLBACK]?: (user: TelegramLoginPayload) => void;
+  }
+}
+
 export function AuthDialog() {
   const { isOpen, tab, close, open } = useAuthModal();
-  const { setToken } = useAuth();
+  const { setToken, isTelegramWebApp } = useAuth();
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [regName, setRegName] = useState("");
@@ -17,6 +37,67 @@ export function AuthDialog() {
   const [regEmail, setRegEmail] = useState("");
   const [regPass, setRegPass] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tgExchanging, setTgExchanging] = useState(false);
+  const tgMountRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * The Telegram widget is useless inside the Mini App (the user is already signed
+   * in via initData) and dangerous without `data-telegram-login` configured —
+   * gate it on both. We also skip the widget when the bot username is unset.
+   */
+  const showTelegramLogin = !isTelegramWebApp && TELEGRAM_LOGIN_BOT.length > 0;
+
+  useEffect(() => {
+    if (!isOpen || !showTelegramLogin) return;
+    const mountEl = tgMountRef.current;
+    if (!mountEl) return;
+
+    const exchangePayload = async (user: TelegramLoginPayload) => {
+      setTgExchanging(true);
+      try {
+        const res = await fetch(apiUrl("/account/auth/telegram-login-widget"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...user, platform: "TelegramLoginWidget" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(apiErrorMessage(data, "Telegram sign in failed"));
+        }
+        const next = (data as { token?: unknown }).token;
+        if (typeof next !== "string" || !next) {
+          throw new Error("Telegram sign in did not return a token.");
+        }
+        setToken(next);
+        close();
+      } catch (e) {
+        notifyError(e instanceof Error ? e.message : "Telegram sign in failed");
+      } finally {
+        setTgExchanging(false);
+      }
+    };
+
+    window[TELEGRAM_AUTH_CALLBACK] = (user) => {
+      void exchangePayload(user);
+    };
+
+    while (mountEl.firstChild) mountEl.removeChild(mountEl.firstChild);
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.setAttribute("data-telegram-login", TELEGRAM_LOGIN_BOT);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-radius", "20");
+    script.setAttribute("data-request-access", "write");
+    script.setAttribute("data-userpic", "false");
+    script.setAttribute("data-onauth", `${TELEGRAM_AUTH_CALLBACK}(user)`);
+    mountEl.appendChild(script);
+
+    return () => {
+      delete window[TELEGRAM_AUTH_CALLBACK];
+      while (mountEl.firstChild) mountEl.removeChild(mountEl.firstChild);
+    };
+  }, [isOpen, showTelegramLogin, setToken, close]);
 
   if (!isOpen) return null;
 
@@ -132,6 +213,26 @@ export function AuthDialog() {
               </button>
             ))}
           </div>
+          {showTelegramLogin ? (
+            <div className="mb-5 rounded-2xl border border-[var(--border)] bg-[var(--page)] px-4 py-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                Quick sign in
+              </p>
+              <div ref={tgMountRef} className="flex justify-center" />
+              {tgExchanging ? (
+                <p className="mt-3 text-center text-[11px] text-[var(--text-muted)]">Signing you in with Telegram…</p>
+              ) : (
+                <p className="mt-3 text-center text-[11px] leading-relaxed text-[var(--text-muted)]">
+                  Tap the blue button to continue with your Telegram account. We never see your password.
+                </p>
+              )}
+              <div className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                <span className="h-px flex-1 bg-[var(--border)]" />
+                or use email / phone
+                <span className="h-px flex-1 bg-[var(--border)]" />
+              </div>
+            </div>
+          ) : null}
           {tab === "login" ? (
             <form onSubmit={onLogin} className="space-y-3">
               <div>

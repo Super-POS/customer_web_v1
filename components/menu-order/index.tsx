@@ -44,12 +44,26 @@ export const MenuOrder = {
   AuthQuerySync,
 } as const;
 
-export type { CartLine, ItemDetailState, MenuCategory, MenuItem, ModifierGroupItem, ModifierOptionItem } from "./types";
+export type {
+  CartLine,
+  ItemDetailState,
+  MenuCategory,
+  MenuItem,
+  MenuSizeItem,
+  MenuSizeKey,
+  ModifierGroupItem,
+  ModifierOptionItem,
+} from "./types";
 export { addOrMergeCartLine, cartLineKey, loadPersistedCartLines, persistCartLines, setCartLineQty, totalQtyForMenu } from "./cart";
 export {
+  defaultSizeForItem,
   findMenuById,
   lineUnitPrice,
+  lowestSizePrice,
   menuHasModifiers,
+  menuHasSizes,
   previewCouponDiscount,
+  priceForSize,
   sortedModifierGroups,
+  sortedSizes,
 } from "./menu-helpers";

@@ -57,7 +57,7 @@ export function MenuOrderInner() {
     () =>
       cartLines.reduce((sum, line) => {
         const menu = findMenuById(menus, line.menu_id);
-        const u = lineUnitPrice(menu, line.modifier_option_ids);
+        const u = lineUnitPrice(menu, line.modifier_option_ids, line.size ?? null);
         return sum + u * line.quantity;
       }, 0),
     [cartLines, menus],
@@ -101,12 +101,17 @@ export function MenuOrderInner() {
     };
   }, [cartSidebarOpen, token]);
 
-  const setLineQty = (menuId: number, modifierIds: number[], qty: number) => {
-    setCartLines((prev) => applyCartLineQty(prev, menuId, modifierIds, qty));
+  const setLineQty = (
+    menuId: number,
+    modifierIds: number[],
+    qty: number,
+    size?: import("./types").MenuSizeKey | null,
+  ) => {
+    setCartLines((prev) => applyCartLineQty(prev, menuId, modifierIds, qty, size ?? null));
   };
 
   const setQtySimple = (productId: number, qty: number) => {
-    setCartLines((prev) => applyCartLineQty(prev, productId, [], qty));
+    setCartLines((prev) => applyCartLineQty(prev, productId, [], qty, null));
   };
 
   const loadMenus = useCallback(async () => {
@@ -157,6 +162,7 @@ export function MenuOrderInner() {
         product_id: l.menu_id,
         quantity: l.quantity,
         modifier_option_ids: l.modifier_option_ids,
+        ...(l.size ? { size: l.size } : {}),
       }));
     if (items.length === 0) {
       notifyError("Choose at least one item.");
