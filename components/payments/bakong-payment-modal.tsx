@@ -224,7 +224,7 @@ export function BakongPaymentModal({
               {receiptNumber ? `Pay order #${receiptNumber}` : "Pay this order"}
             </h2>
             <p className="mt-1 text-xs text-white/70">
-              Scan with any KHQR bank app (ABA, ACLEDA, Wing, Bakong, etc.). We detect payment automatically.
+              Scan the QR with Bakong or any KHQR app, or tap Pay with Bakong below. We detect payment automatically.
             </p>
           </div>
 
@@ -291,7 +291,7 @@ export function BakongPaymentModal({
                 ) : (
                   <p className="mt-5 text-center text-xs leading-relaxed text-[var(--text-muted)]">
                     {canShowKhqrBankPicker()
-                      ? "Choose your bank above, or scan the QR with any KHQR app. We close this window once payment clears."
+                      ? "Tap Pay with Bakong below, or scan the QR with any KHQR app. We close this window once payment clears."
                       : "Open your banking app, choose Scan KHQR, and confirm the payment. We will close this window once it clears."}
                   </p>
                 )}

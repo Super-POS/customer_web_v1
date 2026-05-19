@@ -19,6 +19,8 @@ import { notifyError, notifySuccess } from "@/lib/notify";
 type BakongDepositModalProps = {
   /** Deposit amount in USD (matches the wallet form). */
   amountUsd: number | null;
+  /** When true, closing the modal keeps the pending deposit (resume / pay in bank app). */
+  preservePendingOnClose?: boolean;
   onClose: () => void;
   onPaid?: () => void;
 };
@@ -43,7 +45,12 @@ function formatCountdown(msRemaining: number): string {
   return `${m}:${s}`;
 }
 
-export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDepositModalProps) {
+export function BakongDepositModal({
+  amountUsd,
+  preservePendingOnClose = false,
+  onClose,
+  onPaid,
+}: BakongDepositModalProps) {
   const { token } = useAuth();
   const [intent, setIntent] = useState<(BakongIntent & { wallet_transaction_id: number }) | null>(null);
   const [loading, setLoading] = useState(false);
@@ -131,6 +138,8 @@ export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDeposit
 
   const cancelPendingDepositRef = useRef(cancelPendingDeposit);
   cancelPendingDepositRef.current = cancelPendingDeposit;
+  const preservePendingRef = useRef(preservePendingOnClose);
+  preservePendingRef.current = preservePendingOnClose;
 
   const requestIntent = useCallback(async () => {
     if (!token || amountUsd == null || amountUsd <= 0) return;
@@ -154,6 +163,14 @@ export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDeposit
   }, [token, amountUsd, startPolling, timedOut, cancelPendingDeposit]);
 
   const dismiss = useCallback(async () => {
+    if (!preservePendingRef.current) {
+      await cancelPendingDeposit();
+    }
+    clearAllTimers();
+    onClose();
+  }, [cancelPendingDeposit, clearAllTimers, onClose]);
+
+  const cancelAndClose = useCallback(async () => {
     await cancelPendingDeposit();
     clearAllTimers();
     onClose();
@@ -164,7 +181,7 @@ export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDeposit
     void requestIntent();
     return () => {
       clearAllTimers();
-      if (token) {
+      if (token && !preservePendingRef.current) {
         void cancelPendingDepositRef.current();
       }
     };
@@ -213,7 +230,7 @@ export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDeposit
               </p>
               <h2 className="mt-1 text-xl font-semibold text-white">Top up your wallet</h2>
               <p className="mt-1 text-xs text-white/70">
-                Scan with any KHQR bank app (ABA, ACLEDA, Wing, Bakong, etc.). Your balance updates automatically.
+                Scan the QR with Bakong or any KHQR app, or tap Pay with Bakong below. Your balance updates automatically.
               </p>
             </div>
 
@@ -280,18 +297,27 @@ export function BakongDepositModal({ amountUsd, onClose, onPaid }: BakongDeposit
                   ) : (
                     <p className="mt-5 text-center text-xs leading-relaxed text-[var(--text-muted)]">
                       {canShowKhqrBankPicker()
-                        ? "Choose your bank above, or scan the QR with any KHQR app. We close this window once your deposit clears."
+                        ? "Tap Pay with Bakong below, or scan the QR with any KHQR app. We close this window once your deposit clears."
                         : "Open your banking app, choose Scan KHQR, and confirm the transfer. We will close this window once your deposit clears."}
                     </p>
                   )}
 
                   <button
                     type="button"
-                    onClick={() => void dismiss()}
+                    onClick={() => void cancelAndClose()}
                     className="brand-secondary-button mt-5 w-full rounded-full px-4 py-2.5 text-sm font-bold"
                   >
-                    Cancel
+                    {preservePendingOnClose ? "Cancel deposit" : "Cancel"}
                   </button>
+                  {preservePendingOnClose ? (
+                    <button
+                      type="button"
+                      onClick={() => void dismiss()}
+                      className="mt-2 w-full rounded-full px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] underline-offset-2 hover:underline"
+                    >
+                      Close and keep waiting for payment
+                    </button>
+                  ) : null}
                 </>
               ) : null}
             </div>

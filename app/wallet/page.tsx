@@ -14,6 +14,7 @@ import { notifyError, notifySuccess } from "@/lib/notify";
 import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
+import { formatWalletTxStatus } from "@/lib/wallet-tx-label";
 
 const BAKONG_DEPOSIT_POLL_MS = 3_000;
 
@@ -64,6 +65,8 @@ export default function WalletPage() {
   const [amount, setAmount] = useState("");
   /** When set, opens the Bakong deposit modal for this USD amount. */
   const [pendingDepositUsd, setPendingDepositUsd] = useState<number | null>(null);
+  /** Resume flow: closing the modal does not cancel the server-side pending deposit. */
+  const [preservePendingOnClose, setPreservePendingOnClose] = useState(false);
   const [cancellingDeposit, setCancellingDeposit] = useState(false);
   const resumePollStartedRef = useRef(false);
   const resumePollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -163,7 +166,8 @@ export default function WalletPage() {
     resumePollStartedRef.current = false;
   }, [page]);
 
-  const hasPendingBakongDeposit = history.some(isPendingBakongDeposit);
+  const pendingBakongDeposit = history.find(isPendingBakongDeposit);
+  const hasPendingBakongDeposit = pendingBakongDeposit != null;
 
   const submitDeposit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,10 +177,23 @@ export default function WalletPage() {
       return;
     }
     if (hasPendingBakongDeposit) {
-      notifyError("Cancel your pending deposit before starting a new one.");
+      notifyError("Continue or cancel your pending deposit before starting a new one.");
       return;
     }
+    setPreservePendingOnClose(false);
     setPendingDepositUsd(n);
+  };
+
+  const continuePendingDeposit = () => {
+    if (!pendingBakongDeposit) return;
+    const usd = Number(pendingBakongDeposit.amount);
+    if (!Number.isFinite(usd) || usd <= 0) {
+      notifyError("Could not resume this deposit.");
+      return;
+    }
+    setAmount(String(usd));
+    setPreservePendingOnClose(true);
+    setPendingDepositUsd(usd);
   };
 
   const cancelPendingDeposit = async () => {
@@ -252,16 +269,25 @@ export default function WalletPage() {
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                 <p className="font-bold">You have a pending Bakong deposit</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
-                  Complete payment in your bank app, or cancel below to start a new top-up.
+                  {formatUsdFromKhr(Number(pendingBakongDeposit.amount), khrPerUsd)} — open the QR again or pay in your bank app. We also check for payment automatically.
                 </p>
-                <button
-                  type="button"
-                  disabled={cancellingDeposit}
-                  onClick={() => void cancelPendingDeposit()}
-                  className="mt-3 w-full rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-black text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
-                >
-                  {cancellingDeposit ? "Cancelling…" : "Cancel pending deposit"}
-                </button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={continuePendingDeposit}
+                    className="brand-primary-button w-full rounded-full px-4 py-2.5 text-xs font-black"
+                  >
+                    Continue payment
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cancellingDeposit}
+                    onClick={() => void cancelPendingDeposit()}
+                    className="w-full rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-black text-amber-950 transition hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    {cancellingDeposit ? "Cancelling…" : "Cancel pending deposit"}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -303,7 +329,7 @@ export default function WalletPage() {
               {modalAmount != null
                 ? "QR open…"
                 : hasPendingBakongDeposit
-                  ? "Cancel pending deposit first"
+                  ? "Use Continue payment above"
                   : "Deposit with Bakong"}
             </button>
           </form>
@@ -341,7 +367,7 @@ export default function WalletPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-black capitalize text-[var(--text)]">{formatTxText(tx.type)}</span>
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${statusBadgeClass(tx.status)}`}>
-                          {formatTxText(tx.status)}
+                          {formatWalletTxStatus(tx)}
                         </span>
                         {isPendingBakongDeposit(tx) && (
                           <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--primary-dark)]">
@@ -391,13 +417,16 @@ export default function WalletPage() {
 
       <BakongDepositModal
         amountUsd={modalAmount}
+        preservePendingOnClose={preservePendingOnClose}
         onClose={() => {
           setPendingDepositUsd(null);
+          setPreservePendingOnClose(false);
           resumePollStartedRef.current = false;
           void loadHistory();
         }}
         onPaid={() => {
           setPendingDepositUsd(null);
+          setPreservePendingOnClose(false);
           setAmount("");
           resumePollStartedRef.current = false;
           void loadWallet();

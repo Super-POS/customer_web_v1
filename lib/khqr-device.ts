@@ -1,3 +1,5 @@
+import { isTelegramWebAppRuntime } from "@/lib/telegram-webapp";
+
 /** True on phones/tablets where Bakong bank-app deep links are useful. */
 export function isMobilePayDevice(): boolean {
   if (typeof window === "undefined") return false;
@@ -10,8 +12,10 @@ export function isMobilePayDevice(): boolean {
 
 /** True when running inside the Telegram Mini App WebView. */
 export function isTelegramWebApp(): boolean {
-  if (typeof window === "undefined") return false;
-  if (document.documentElement.dataset.telegramWebapp === "1") return true;
-  const init = window.Telegram?.WebApp?.initData?.trim();
-  return Boolean(init && init.length > 0);
+  return isTelegramWebAppRuntime();
+}
+
+/** Show ABA / ACLEDA / Wing buttons on mobile browsers and inside Telegram Mini App. */
+export function canShowKhqrBankPicker(): boolean {
+  return isMobilePayDevice() || isTelegramWebApp();
 }

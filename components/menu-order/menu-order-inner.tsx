@@ -205,7 +205,7 @@ export function MenuOrderInner() {
               : `order-${Math.random().toString(36).slice(2)}`,
         },
         body: JSON.stringify({
-          channel: "website",
+          channel: isTelegramWebApp ? "telegram" : "website",
           cart: JSON.stringify(items),
           ...(couponCodeInput.trim()
             ? { coupon_code: couponCodeInput.trim().toUpperCase() }
