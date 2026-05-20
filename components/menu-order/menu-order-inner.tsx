@@ -6,7 +6,7 @@ import { apiErrorMessage, apiUrl, getPublicMenuUrl } from "@/lib/api";
 import { fetchJson } from "@/lib/customer-fetch";
 import { notify, notifyError, notifyInfo } from "@/lib/notify";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BakongPaymentModal } from "@/components/payments/bakong-payment-modal";
+import { BarayPaymentModal } from "@/components/payments/baray-payment-modal";
 import { loadPersistedCartLines, persistCartLines, setCartLineQty as applyCartLineQty } from "./cart";
 import { MenuCartSidebar } from "./menu-cart-sidebar";
 import { MenuCategoryList } from "./menu-category-list";
@@ -36,7 +36,7 @@ export function MenuOrderInner() {
   const [detailModifierQty, setDetailModifierQty] = useState(1);
   const [couponOptions, setCouponOptions] = useState<{ code: string; discount_percent: number }[]>([]);
   const [couponCodeInput, setCouponCodeInput] = useState("");
-  // Bakong KHQR modal — opened after a successful Place order so the customer can scan + pay
+  // Baray pay modal — opened after a successful Place order so the customer can pay online
   // without leaving the menu. Same flow inside the Telegram Mini App and the web.
   const [pendingPayment, setPendingPayment] = useState<{
     orderId: number;
@@ -287,7 +287,7 @@ export function MenuOrderInner() {
         />
       ) : null}
 
-      <BakongPaymentModal
+      <BarayPaymentModal
         orderId={pendingPayment?.orderId ?? null}
         receiptNumber={pendingPayment?.receiptNumber ?? null}
         totalKhrFallback={pendingPayment?.totalKhr ?? null}

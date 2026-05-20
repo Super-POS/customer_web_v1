@@ -1,4 +1,4 @@
-/** Human-readable wallet transaction status (includes Bakong note suffixes). */
+/** Human-readable wallet transaction status (includes Baray note suffixes). */
 export function formatWalletTxStatus(tx: {
   type?: string;
   status?: string;
@@ -7,23 +7,22 @@ export function formatWalletTxStatus(tx: {
   const type = String(tx.type ?? "").toLowerCase();
   const status = String(tx.status ?? "").toLowerCase();
   const noteLine = String(tx.note ?? "").split("\n")[0].toLowerCase();
-  const isBakong =
-    noteLine === "bakong" || noteLine.startsWith("bakong|") || noteLine.startsWith("bakong\n");
+  const isBaray =
+    noteLine === "baray" || noteLine.startsWith("baray|");
 
   if (status === "approved") {
     return type === "deposit" ? "Completed" : "Approved";
   }
 
   if (status === "pending") {
-    if (isBakong) return "Awaiting Bakong payment";
+    if (isBaray) return "Awaiting Baray payment";
     return "Pending";
   }
 
   if (status === "rejected") {
     if (noteLine.includes("|abandoned")) return "Cancelled";
-    if (noteLine.includes("|expired")) return "QR expired";
+    if (noteLine.includes("|expired")) return "Pay link expired";
     if (noteLine.includes("|failed")) return "Payment failed";
-    if (noteLine.includes("bakong_qr_failed")) return "QR could not be created";
     return "Declined";
   }
 

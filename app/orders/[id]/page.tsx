@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
-import { BakongPaymentModal } from "@/components/payments/bakong-payment-modal";
+import { BarayPaymentModal } from "@/components/payments/baray-payment-modal";
 import { formatUsdFromKhr } from "@/lib/api";
 import { useExchangeRate } from "@/contexts/exchange-rate-context";
 import { useAuth } from "@/lib/auth-context";
@@ -13,8 +13,8 @@ import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 import {
-  hasActivePendingBakongPayment,
-  orderCanStartNewBakongPayment,
+  hasActivePendingBarayPayment,
+  orderCanStartNewBarayPayment,
   orderAwaitingPayment,
 } from "@/lib/order-payment";
 
@@ -48,7 +48,7 @@ type PaymentTx = {
   created_at?: string;
 };
 
-/** Cash / wallet / card slots for in-store handling. Bakong KHQR has its own dedicated flow. */
+/** Cash / wallet / card slots for in-store handling. Baray has its own dedicated flow. */
 const SIMPLE_PAY_METHODS = ["cash", "wallet", "card"] as const;
 
 function formatStatus(s: string): string {
@@ -65,8 +65,8 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [payBusy, setPayBusy] = useState<string | null>(null);
 
-  /** When non-null, the BakongPaymentModal is open for this order id. */
-  const [bakongModalOpenForOrder, setBakongModalOpenForOrder] = useState<number | null>(null);
+  /** When non-null, the BarayPaymentModal is open for this order id. */
+  const [barayModalOpenForOrder, setBarayModalOpenForOrder] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -100,30 +100,30 @@ export default function OrderDetailPage() {
   }, [load]);
 
   /**
-   * After refresh: if the order is still awaiting payment with a pending Bakong attempt,
+   * After refresh: if the order is still awaiting payment with a pending Baray attempt,
    * reopen the modal so it can resume the poll. The modal handles intent rotation if the
-   * previous QR has already expired on the server.
+   * previous pay link has already expired on the server.
    */
   useEffect(() => {
-    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || !order || bakongModalOpenForOrder != null) {
+    if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY || !token || loading || !order || barayModalOpenForOrder != null) {
       return;
     }
     if (order.status !== "awaiting_payment") return;
-    if (hasActivePendingBakongPayment(payments)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-resume Bakong modal after refresh
-      setBakongModalOpenForOrder(order.id);
+    if (hasActivePendingBarayPayment(payments)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-resume Baray modal after refresh
+      setBarayModalOpenForOrder(order.id);
     }
-  }, [token, loading, order, payments, bakongModalOpenForOrder]);
+  }, [token, loading, order, payments, barayModalOpenForOrder]);
 
-  const canPayOnline = order != null && orderCanStartNewBakongPayment(order.status, payments);
-  const canResumeBakong =
+  const canPayOnline = order != null && orderCanStartNewBarayPayment(order.status, payments);
+  const canResumeBaray =
     order != null &&
     orderAwaitingPayment(order.status) &&
-    hasActivePendingBakongPayment(payments);
+    hasActivePendingBarayPayment(payments);
 
-  const startBakongCheckout = () => {
-    if (!order || (!canPayOnline && !canResumeBakong)) return;
-    setBakongModalOpenForOrder(order.id);
+  const startBarayCheckout = () => {
+    if (!order || (!canPayOnline && !canResumeBaray)) return;
+    setBarayModalOpenForOrder(order.id);
   };
 
   const initiatePayment = async (method: (typeof SIMPLE_PAY_METHODS)[number]) => {
@@ -273,26 +273,26 @@ export default function OrderDetailPage() {
                   When you are ready, see our cashier with this order. They will take payment and complete it in the POS.
                 </p>
               </section>
-            ) : canPayOnline || canResumeBakong ? (
+            ) : canPayOnline || canResumeBaray ? (
               <>
                 <section className="brand-card mt-8 rounded-[1.75rem] p-6">
-                  <h2 className="text-lg font-semibold text-[var(--text)]">Pay with Bakong (KHQR)</h2>
+                  <h2 className="text-lg font-semibold text-[var(--text)]">Pay with Baray</h2>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    {canResumeBakong && !canPayOnline
-                      ? "You have an active QR for this order. Resume scanning or wait for it to expire."
-                      : "Scan the QR code with your Bakong-supported banking app (ABA, ACLEDA, Wing, etc.). We detect payment automatically."}
+                    {canResumeBaray && !canPayOnline
+                      ? "You have an active Baray payment for this order. Resume checkout or wait for it to expire."
+                      : "Open Baray to complete payment. We detect payment automatically when you finish."}
                   </p>
                   <button
                     type="button"
-                    disabled={bakongModalOpenForOrder != null}
-                    onClick={startBakongCheckout}
+                    disabled={barayModalOpenForOrder != null}
+                    onClick={startBarayCheckout}
                     className="brand-primary-button mt-4 w-full rounded-full px-4 py-3.5 text-sm font-bold disabled:opacity-50 sm:w-auto sm:min-w-[14rem]"
                   >
-                    {bakongModalOpenForOrder != null
-                      ? "QR open…"
-                      : canResumeBakong && !canPayOnline
-                        ? "Resume Bakong payment"
-                        : "Pay with Bakong (KHQR)"}
+                    {barayModalOpenForOrder != null
+                      ? "Payment open…"
+                      : canResumeBaray && !canPayOnline
+                        ? "Resume Baray payment"
+                        : "Pay with Baray"}
                   </button>
                 </section>
 
@@ -308,7 +308,7 @@ export default function OrderDetailPage() {
                       <button
                         key={m}
                         type="button"
-                        disabled={payBusy !== null || bakongModalOpenForOrder != null}
+                        disabled={payBusy !== null || barayModalOpenForOrder != null}
                         onClick={() => initiatePayment(m)}
                         className="brand-secondary-button rounded-full px-4 py-2 text-sm font-bold capitalize disabled:opacity-50"
                       >
@@ -328,9 +328,9 @@ export default function OrderDetailPage() {
                         >
                           <div>
                             <span className="font-medium capitalize text-[var(--text)]">{tx.method}</span>
-                            {tx.note === "bakong" && (
+                            {tx.note === "baray" && (
                               <span className="ml-1 rounded bg-[var(--primary-soft)] px-1.5 text-xs font-medium text-[var(--primary-dark)]">
-                                Bakong
+                                Baray
                               </span>
                             )}
                             <span className="mx-2 text-[var(--border)]">·</span>
@@ -378,9 +378,9 @@ export default function OrderDetailPage() {
                       >
                         <div>
                           <span className="font-medium capitalize text-[var(--text)]">{tx.method}</span>
-                          {tx.note === "bakong" && (
+                          {tx.note === "baray" && (
                             <span className="ml-1 rounded bg-[var(--primary-soft)] px-1.5 text-xs font-medium text-[var(--primary-dark)]">
-                              Bakong
+                              Baray
                             </span>
                           )}
                           <span className="mx-2 text-[var(--border)]">·</span>
@@ -400,13 +400,13 @@ export default function OrderDetailPage() {
 
       </div>
 
-      <BakongPaymentModal
-        orderId={canPayOnline || canResumeBakong ? bakongModalOpenForOrder : null}
+      <BarayPaymentModal
+        orderId={canPayOnline || canResumeBaray ? barayModalOpenForOrder : null}
         receiptNumber={order?.receipt_number ?? null}
         totalKhrFallback={order?.total_price != null ? Number(order.total_price) : null}
-        onClose={() => setBakongModalOpenForOrder(null)}
+        onClose={() => setBarayModalOpenForOrder(null)}
         onPaid={() => {
-          setBakongModalOpenForOrder(null);
+          setBarayModalOpenForOrder(null);
           void load();
         }}
       />

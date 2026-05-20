@@ -29,3 +29,26 @@ export function barayOutcomeFromPoll(
   }
   return "paid";
 }
+
+/** Matches `GET /api/customer/wallet/deposit/:id/payment-state` for Baray deposits. */
+export type BarayWalletDepositStatePayload = {
+  data?: {
+    wallet_transaction_status?: string;
+  };
+};
+
+export function barayWalletDepositOutcomeFromPoll(
+  res: BarayWalletDepositStatePayload | null,
+): "wait" | "paid" | "cancelled" {
+  if (res == null || typeof res !== "object") {
+    return "wait";
+  }
+  const status = String(res.data?.wallet_transaction_status ?? "").toLowerCase();
+  if (status === "approved") {
+    return "paid";
+  }
+  if (status === "rejected") {
+    return "cancelled";
+  }
+  return "wait";
+}

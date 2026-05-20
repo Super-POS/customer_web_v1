@@ -5,7 +5,7 @@ type PaymentRow = {
   expires_at?: string | null;
 };
 
-/** True when the customer can still pay for this order (Bakong / in-app payment). */
+/** True when the customer can still pay for this order (Baray / in-app payment). */
 export function orderAwaitingPayment(status: string | null | undefined): boolean {
   return String(status ?? "").toLowerCase() === "awaiting_payment";
 }
@@ -14,16 +14,16 @@ export function orderHasSuccessfulPayment(payments: { status: string }[]): boole
   return payments.some((tx) => String(tx.status).toLowerCase() === "success");
 }
 
-export function isBakongPaymentTx(tx: { method: string; note?: string | null }): boolean {
+export function isBarayPaymentTx(tx: { method: string; note?: string | null }): boolean {
   const note = String(tx.note ?? "").toLowerCase();
-  return String(tx.method).toLowerCase() === "qr" && (note === "bakong" || note.startsWith("bakong\n"));
+  return String(tx.method).toLowerCase() === "qr" && (note === "baray" || note.startsWith("baray|"));
 }
 
-/** Pending Bakong QR that has not passed its expiry timestamp. */
-export function hasActivePendingBakongPayment(payments: PaymentRow[]): boolean {
+/** Pending Baray pay link that has not passed its expiry timestamp. */
+export function hasActivePendingBarayPayment(payments: PaymentRow[]): boolean {
   const now = Date.now();
   return payments.some((tx) => {
-    if (!isBakongPaymentTx(tx) || String(tx.status).toLowerCase() !== "pending") {
+    if (!isBarayPaymentTx(tx) || String(tx.status).toLowerCase() !== "pending") {
       return false;
     }
     if (!tx.expires_at) return true;
@@ -31,13 +31,13 @@ export function hasActivePendingBakongPayment(payments: PaymentRow[]): boolean {
   });
 }
 
-export function orderCanStartNewBakongPayment(
+export function orderCanStartNewBarayPayment(
   orderStatus: string | null | undefined,
   payments: PaymentRow[],
 ): boolean {
   return (
     orderAwaitingPayment(orderStatus) &&
     !orderHasSuccessfulPayment(payments) &&
-    !hasActivePendingBakongPayment(payments)
+    !hasActivePendingBarayPayment(payments)
   );
 }

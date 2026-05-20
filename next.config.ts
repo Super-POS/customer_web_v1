@@ -24,6 +24,7 @@ function devAllowedOrigins(): string[] {
   const wildcards = [
     "*.ngrok-free.app",
     "*.ngrok.io",
+    "*.trycloudflare.com",
   ];
   const extra = (process.env.NEXT_DEV_ALLOWED_ORIGINS || "")
     .split(",")
