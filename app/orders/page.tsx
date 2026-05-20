@@ -15,6 +15,7 @@ type OrderRow = {
   receipt_number: string;
   total_price?: number | null;
   status: string;
+  is_paid?: boolean;
   channel?: string;
   ordered_at?: string | null;
 };
@@ -87,7 +88,14 @@ export default function OrdersPage() {
                   className="brand-card brand-card-hover flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-4"
                 >
                   <div>
-                    <p className="font-semibold text-[var(--text)]">#{o.receipt_number}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-[var(--text)]">#{o.receipt_number}</p>
+                      {o.is_paid && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                          Paid
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[var(--text-muted)]">
                       {formatStatus(o.status)}
                       {o.channel ? ` · ${o.channel}` : ""}

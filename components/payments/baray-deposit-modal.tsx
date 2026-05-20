@@ -92,7 +92,6 @@ export function BarayDepositModal({
           setWaiting(false);
           notifySuccess("Deposit received. Your balance has been updated.");
           onPaid?.();
-          onClose();
         } else if (outcome === "cancelled") {
           clearAllTimers();
           setWaiting(false);

@@ -94,7 +94,6 @@ export function BarayPaymentModal({
           setWaiting(false);
           notifySuccess("Payment received. Thank you!");
           onPaid?.();
-          onClose();
         } else if (outcome === "cancelled") {
           clearAllTimers();
           setWaiting(false);
