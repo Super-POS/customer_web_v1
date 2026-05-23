@@ -44,9 +44,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${lato.variable} ${oswald.variable} h-full antialiased`}
+      style={{ colorScheme: "light" }}
       suppressHydrationWarning
     >
       <head>
+        <meta name="color-scheme" content="light" />
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body className="min-h-dvh bg-background font-sans text-foreground">

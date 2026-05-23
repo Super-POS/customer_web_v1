@@ -7,6 +7,7 @@
   Typography: Oswald — headlines; Lato — body (see layout.tsx).
 */
 :root {
+  color-scheme: light;
   --primary: #da291c;
   --primary-dark: #a51414;
   --primary-deep: #7d1111;
