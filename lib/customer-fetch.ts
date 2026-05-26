@@ -1,4 +1,5 @@
 import { apiErrorMessage, apiUrl } from "@/lib/api";
+import { CUSTOMER_ACCESS_DENIED_MESSAGE } from "@/lib/auth-token";
 
 export async function fetchJson<T>(
   path: string,
@@ -19,6 +20,9 @@ export async function fetchJson<T>(
   const res = await fetch(apiUrl(path), { ...init, headers });
   const body: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error(CUSTOMER_ACCESS_DENIED_MESSAGE);
+    }
     throw new Error(apiErrorMessage(body, "Request failed"));
   }
   return body as T;

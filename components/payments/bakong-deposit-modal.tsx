@@ -137,9 +137,11 @@ export function BakongDepositModal({
   }, [token, intent?.wallet_transaction_id]);
 
   const cancelPendingDepositRef = useRef(cancelPendingDeposit);
-  cancelPendingDepositRef.current = cancelPendingDeposit;
   const preservePendingRef = useRef(preservePendingOnClose);
-  preservePendingRef.current = preservePendingOnClose;
+  useEffect(() => {
+    cancelPendingDepositRef.current = cancelPendingDeposit;
+    preservePendingRef.current = preservePendingOnClose;
+  }, [cancelPendingDeposit, preservePendingOnClose]);
 
   const requestIntent = useCallback(async () => {
     if (!token || amountUsd == null || amountUsd <= 0) return;
@@ -178,8 +180,9 @@ export function BakongDepositModal({
 
   useEffect(() => {
     if (amountUsd == null) return;
-    void requestIntent();
+    const t = setTimeout(() => void requestIntent(), 0);
     return () => {
+      clearTimeout(t);
       clearAllTimers();
       if (token && !preservePendingRef.current) {
         void cancelPendingDepositRef.current();

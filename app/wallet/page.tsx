@@ -85,12 +85,14 @@ export default function WalletPage() {
 
   useEffect(() => {
     if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
-    void loadWallet();
+    const t = setTimeout(() => void loadWallet(), 0);
+    return () => clearTimeout(t);
   }, [loadWallet]);
 
   useEffect(() => {
     if (CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY) return;
-    void loadHistory();
+    const t = setTimeout(() => void loadHistory(), 0);
+    return () => clearTimeout(t);
   }, [loadHistory]);
 
   useEffect(() => {

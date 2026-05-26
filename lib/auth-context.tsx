@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { apiErrorMessage, apiUrl } from "@/lib/api";
+import { STAFF_ACCOUNT_MESSAGE, tokenHasCustomerRole } from "@/lib/auth-token";
 
 const STORAGE_KEY = "pos_customer_token";
 
@@ -170,11 +171,23 @@ type AuthState = {
   ready: boolean;
   isTelegramWebApp: boolean;
   authError: string | null;
-  setToken: (t: string) => void;
+  setToken: (t: string) => boolean;
   signOut: () => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+function storeCustomerToken(
+  token: string,
+  mirrorCloud: boolean,
+): { ok: true } | { ok: false; message: string } {
+  if (!tokenHasCustomerRole(token)) {
+    return { ok: false, message: STAFF_ACCOUNT_MESSAGE };
+  }
+  localStorage.setItem(STORAGE_KEY, token);
+  if (mirrorCloud) mirrorTokenToTelegramCloud(token);
+  return { ok: true };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
@@ -206,14 +219,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!initData) {
-        if (stored) setTokenState(stored);
+        if (stored) {
+          const accepted = storeCustomerToken(stored, false);
+          if (accepted.ok) {
+            setTokenState(stored);
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+            setAuthError(accepted.message);
+          }
+        }
         setReady(true);
         return;
       }
 
       const hadLocal = Boolean(stored);
       if (stored) {
-        setTokenState(stored);
+        const accepted = storeCustomerToken(stored, false);
+        if (accepted.ok) {
+          setTokenState(stored);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setAuthError(accepted.message);
+        }
         setReady(true);
       }
 
@@ -222,9 +249,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cloud = await readCloudSession(1600);
         if (cancelled) return;
         if (cloud) {
-          hadCloud = true;
-          localStorage.setItem(STORAGE_KEY, cloud);
-          setTokenState(cloud);
+          const accepted = storeCustomerToken(cloud, false);
+          if (accepted.ok) {
+            hadCloud = true;
+            setTokenState(cloud);
+          } else {
+            clearTelegramCloudToken();
+            localStorage.removeItem(STORAGE_KEY);
+            setAuthError(accepted.message);
+          }
           setReady(true);
         }
       }
@@ -256,8 +289,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error("Telegram sign in did not return a token.");
         }
         if (cancelled) return;
-        localStorage.setItem(STORAGE_KEY, nextToken);
-        mirrorTokenToTelegramCloud(nextToken);
+        const accepted = storeCustomerToken(nextToken, true);
+        if (!accepted.ok) {
+          localStorage.removeItem(STORAGE_KEY);
+          clearTelegramCloudToken();
+          setTokenState(null);
+          setAuthError(accepted.message);
+          return;
+        }
         setTokenState(nextToken);
         setAuthError(null);
       } catch (e) {
@@ -289,12 +328,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setToken = useCallback((t: string) => {
-    localStorage.setItem(STORAGE_KEY, t);
-    mirrorTokenToTelegramCloud(t);
+  const setToken = useCallback((t: string): boolean => {
+    const accepted = storeCustomerToken(t, isTelegramWebApp);
+    if (!accepted.ok) {
+      localStorage.removeItem(STORAGE_KEY);
+      clearTelegramCloudToken();
+      setTokenState(null);
+      setAuthError(accepted.message);
+      return false;
+    }
     setTokenState(t);
     setAuthError(null);
-  }, []);
+    return true;
+  }, [isTelegramWebApp]);
 
   const signOut = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);

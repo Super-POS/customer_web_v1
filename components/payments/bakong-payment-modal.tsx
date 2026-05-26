@@ -171,8 +171,9 @@ export function BakongPaymentModal({
 
   useEffect(() => {
     if (orderId == null) return;
-    void requestIntent();
+    const t = setTimeout(() => void requestIntent(), 0);
     return () => {
+      clearTimeout(t);
       clearAllTimers();
     };
   }, [orderId, requestIntent, clearAllTimers]);

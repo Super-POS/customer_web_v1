@@ -135,12 +135,15 @@ export function BarayDepositModal({
 
   useEffect(() => {
     if (amountUsd == null && resumeWalletTxId == null) return;
-    if (resumeWalletTxId != null && preservePendingOnClose) {
-      startPolling(resumeWalletTxId);
-    } else if (amountUsd != null) {
-      void requestIntent();
-    }
+    const t = setTimeout(() => {
+      if (resumeWalletTxId != null && preservePendingOnClose) {
+        startPolling(resumeWalletTxId);
+      } else if (amountUsd != null) {
+        void requestIntent();
+      }
+    }, 0);
     return () => {
+      clearTimeout(t);
       clearAllTimers();
     };
   }, [amountUsd, resumeWalletTxId, preservePendingOnClose, requestIntent, startPolling, clearAllTimers]);

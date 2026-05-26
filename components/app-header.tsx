@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
@@ -9,14 +10,24 @@ import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 const NAV_ALL = [
   { href: "/", label: "Menu" },
   { href: "/orders", label: "Orders" },
+  { href: "/meeting-rooms", label: "Rooms" },
   { href: "/wallet", label: "Wallet" },
   { href: "/rewards", label: "Rewards" },
   { href: "/payments", label: "Payments" },
 ] as const;
 
-const NAV = CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
-  ? NAV_ALL.filter((item) => item.href !== "/wallet" && item.href !== "/rewards" && item.href !== "/payments")
-  : NAV_ALL;
+const NAV_GUEST = NAV_ALL.filter(
+  (item) => item.href === "/" || item.href === "/meeting-rooms",
+);
+
+function navForLoggedInUser() {
+  return CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
+    ? NAV_ALL.filter(
+        (item) =>
+          item.href !== "/wallet" && item.href !== "/rewards" && item.href !== "/payments",
+      )
+    : NAV_ALL;
+}
 
 function IconUser({ className }: { className?: string }) {
   return (
@@ -32,6 +43,11 @@ export function AppHeader() {
   const { token, signOut, ready, isTelegramWebApp } = useAuth();
   const { openLogin, openRegister } = useAuthModal();
 
+  const navItems = useMemo(() => {
+    if (ready && token) return navForLoggedInUser();
+    return NAV_GUEST;
+  }, [ready, token]);
+
   return (
     <header className="tg-app-header sticky top-0 z-50 px-2.5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px))] sm:px-5">
       <div className="tg-header-card mx-auto max-w-6xl overflow-hidden rounded-[1.75rem] border border-white/70 bg-[rgba(255,250,242,0.86)] shadow-[0_22px_70px_-42px_rgba(36,23,15,0.7)] ring-1 ring-[rgba(111,68,35,0.08)] backdrop-blur-2xl">
@@ -40,8 +56,13 @@ export function AppHeader() {
             className="tg-mobile-nav no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto md:justify-center md:gap-1.5"
             aria-label="Main"
           >
-            {NAV.map(({ href, label }) => {
-              const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            {navItems.map(({ href, label }) => {
+              const active =
+                href === "/"
+                  ? pathname === "/"
+                  : href === "/meeting-rooms"
+                    ? pathname === "/meeting-rooms" || pathname.startsWith("/meeting-rooms/")
+                    : pathname.startsWith(href);
               return (
                 <Link
                   key={href}

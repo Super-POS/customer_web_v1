@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthModal } from "@/contexts/auth-modal-context";
 import { apiErrorMessage, apiUrl } from "@/lib/api";
+import { STAFF_ACCOUNT_MESSAGE } from "@/lib/auth-token";
 import { notifyError } from "@/lib/notify";
 import { BrandLogo } from "./brand-logo";
 
@@ -68,7 +69,10 @@ export function AuthDialog() {
         if (typeof next !== "string" || !next) {
           throw new Error("Telegram sign in did not return a token.");
         }
-        setToken(next);
+        if (!setToken(next)) {
+          notifyError(STAFF_ACCOUNT_MESSAGE);
+          return;
+        }
         close();
       } catch (e) {
         notifyError(e instanceof Error ? e.message : "Telegram sign in failed");
@@ -113,14 +117,17 @@ export function AuthDialog() {
       const data = await res.json();
       if (!res.ok) throw new Error(apiErrorMessage(data, "Sign in failed"));
       if (typeof data.token === "string") {
-        setToken(data.token);
+        if (!setToken(data.token)) {
+          notifyError(STAFF_ACCOUNT_MESSAGE);
+          return;
+        }
         close();
         setLoginPass("");
       } else {
         notifyError("Invalid response");
       }
     } catch (e) {
-      notifyError(e instanceof Error ? e.message : "Error");
+      notifyError(e instanceof Error ? e.message : "Sign in failed");
     } finally {
       setLoading(false);
     }
@@ -144,14 +151,17 @@ export function AuthDialog() {
       const data = await res.json();
       if (!res.ok) throw new Error(apiErrorMessage(data, "Registration failed"));
       if (typeof data.token === "string") {
-        setToken(data.token);
+        if (!setToken(data.token)) {
+          notifyError(STAFF_ACCOUNT_MESSAGE);
+          return;
+        }
         close();
         setRegPass("");
       } else {
         notifyError("Invalid response");
       }
     } catch (e) {
-      notifyError(e instanceof Error ? e.message : "Error");
+      notifyError(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setLoading(false);
     }
