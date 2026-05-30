@@ -5,6 +5,7 @@ import { AuthQuerySync } from "./auth-query-sync";
 import { CoffeePlaceholder } from "./coffee-placeholder";
 import { MenuCartSidebar } from "./menu-cart-sidebar";
 import { MenuCategoryList } from "./menu-category-list";
+import { MenuCategoryNav } from "./menu-category-nav";
 import { MenuFloatingCart } from "./menu-floating-cart";
 import { MenuOrderHero } from "./menu-hero";
 import { MenuItemDetailSidebar } from "./menu-item-detail-sidebar";
@@ -34,6 +35,7 @@ export const MenuOrder = {
   Inner: MenuOrderInner,
   Hero: MenuOrderHero,
   CategoryList: MenuCategoryList,
+  CategoryNav: MenuCategoryNav,
   LoadingSkeleton: MenuLoadingSkeleton,
   FloatingCart: MenuFloatingCart,
   CartSidebar: MenuCartSidebar,

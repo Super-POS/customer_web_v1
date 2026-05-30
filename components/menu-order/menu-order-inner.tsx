@@ -10,6 +10,7 @@ import { BarayPaymentModal } from "@/components/payments/baray-payment-modal";
 import { loadPersistedCartLines, persistCartLines, setCartLineQty as applyCartLineQty } from "./cart";
 import { MenuCartSidebar } from "./menu-cart-sidebar";
 import { MenuCategoryList } from "./menu-category-list";
+import { MenuCategoryNav } from "./menu-category-nav";
 import { MenuFloatingCart } from "./menu-floating-cart";
 import { MenuOrderHero } from "./menu-hero";
 import { MenuItemDetailSidebar } from "./menu-item-detail-sidebar";
@@ -248,7 +249,11 @@ export function MenuOrderInner() {
 
       {loadingMenus && !menus.length ? <MenuLoadingSkeleton /> : null}
 
-      <MenuCategoryList menus={menus} cartLines={cartLines} onOpenItem={openItemDetail} onAddSimple={setQtySimple} />
+      <MenuCategoryNav menus={menus} />
+
+      <div className="mx-auto max-w-6xl pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] max-[380px]:pl-3 max-[380px]:pr-3 sm:pl-6 sm:pr-6">
+        <MenuCategoryList menus={menus} cartLines={cartLines} onOpenItem={openItemDetail} onAddSimple={setQtySimple} />
+      </div>
 
       <MenuFloatingCart
         cartCount={cartCount}

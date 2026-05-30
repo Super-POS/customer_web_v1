@@ -18,13 +18,9 @@ export type MenuCategoryListProps = {
 export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: MenuCategoryListProps) {
   const { khrPerUsd } = useExchangeRate();
   return (
-    <div
-      id="menu-list"
-      className="mx-auto max-w-6xl scroll-mt-28 sm:scroll-mt-32 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] max-[380px]:pl-3 max-[380px]:pr-3 sm:pl-6 sm:pr-6"
-    >
-      <div className="space-y-9 pt-6 sm:space-y-12 sm:pt-8 lg:pt-10">
-        {menus.map((group) => (
-          <section key={group.id} id={`cat-${group.id}`} className="scroll-mt-24 sm:scroll-mt-28">
+    <div id="menu-list" className="space-y-9 pt-6 sm:space-y-12 sm:pt-8 lg:pt-10">
+      {menus.map((group) => (
+        <section key={group.id} id={`cat-${group.id}`} className="scroll-mt-36 sm:scroll-mt-28">
             <header className="tg-menu-section-title mb-4 border-l-[4px] border-[var(--primary)] pl-3 sm:mb-5 sm:pl-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--text-muted)]">Menu</p>
               <h2 className="mt-1.5 font-[family-name:var(--font-oswald)] text-[clamp(1.35rem,3.5vw+0.65rem,1.75rem)] font-semibold tracking-tight text-[var(--text)]">
@@ -114,7 +110,6 @@ export function MenuCategoryList({ menus, cartLines, onOpenItem, onAddSimple }: 
             </ul>
           </section>
         ))}
-      </div>
     </div>
   );
 }
