@@ -136,7 +136,24 @@ export default function ProfilePage() {
   return (
     <SignInGate>
       <div className="brand-page max-w-4xl">
-        <AccountPageHeader title="Profile" subtitle="Overview and account settings." />
+        <div className="flex items-start justify-between gap-4">
+          <AccountPageHeader title="Profile" subtitle="Overview and account settings." />
+          <Link
+            href="/profile/qr"
+            className="brand-card mt-px flex shrink-0 flex-col items-center gap-1 rounded-2xl px-4 py-3 text-center transition hover:brightness-95"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-[var(--primary)]">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" />
+              <rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" />
+              <rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
+              <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
+            </svg>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">My QR</span>
+          </Link>
+        </div>
 
         {loading ? (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
