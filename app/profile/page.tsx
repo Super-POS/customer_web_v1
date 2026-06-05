@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const { token } = useAuth();
   const [overview, setOverview] = useState<ProfilePayload["data"] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [qrCode, setQrCode] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -63,8 +64,11 @@ export default function ProfilePage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetchJson<ProfilePayload>("/customer/profile", token);
-      const d = res.data;
+      const [profileRes, qrRes] = await Promise.all([
+        fetchJson<ProfilePayload>("/customer/profile", token),
+        fetchJson<{ data: { qr_code: string } }>("/customer/profile/qr", token),
+      ]);
+      const d = profileRes.data;
       setOverview(d ?? null);
       if (d?.user) {
         setName(d.user.name ?? "");
@@ -72,6 +76,7 @@ export default function ProfilePage() {
         setEmail(d.user.email ?? "");
         setAvatar(d.user.avatar ?? "");
       }
+      setQrCode(qrRes.data.qr_code ?? null);
     } catch {
       setOverview(null);
     } finally {
@@ -140,17 +145,22 @@ export default function ProfilePage() {
           <AccountPageHeader title="Profile" subtitle="Overview and account settings." />
           <Link
             href="/profile/qr"
-            className="brand-card mt-px flex shrink-0 flex-col items-center gap-1 rounded-2xl px-4 py-3 text-center transition hover:brightness-95"
+            className="brand-card mt-px flex shrink-0 flex-col items-center gap-1.5 rounded-2xl p-2.5 text-center transition hover:brightness-95"
+            title="View my QR code"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-[var(--primary)]">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" />
-              <rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" />
-              <rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
-              <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
-            </svg>
+            {loading ? (
+              <div className="h-[72px] w-[72px] animate-pulse rounded-xl bg-[color-mix(in_srgb,var(--border)_55%,white)]" />
+            ) : qrCode ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qrCode} alt="My QR code" className="h-[72px] w-[72px] rounded-xl object-contain" draggable={false} />
+            ) : (
+              <div className="flex h-[72px] w-[72px] items-center justify-center rounded-xl bg-[var(--primary-soft)]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-[var(--primary)]">
+                  <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" /><rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
+                </svg>
+              </div>
+            )}
             <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">My QR</span>
           </Link>
         </div>

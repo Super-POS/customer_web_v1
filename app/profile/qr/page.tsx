@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fetchJson } from "@/lib/customer-fetch";
 
 type QrResponse = {
-  data: { qr: string };
+  data: { qr_code: string };
 };
 
 export default function ProfileQrPage() {
@@ -22,7 +22,7 @@ export default function ProfileQrPage() {
     setError(null);
     try {
       const res = await fetchJson<QrResponse>("/customer/profile/qr", token);
-      setQr(res.data.qr);
+      setQr(res.data.qr_code);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load QR code.");
     } finally {
