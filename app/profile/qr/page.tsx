@@ -34,12 +34,18 @@ export default function ProfileQrPage() {
     void load();
   }, [load]);
 
+  const showLoading = !ready || (ready && !!token && loading);
+  const showSignIn = ready && !token;
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--bg)]">
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center"
+      style={{ zIndex: 9999, background: "var(--page)" }}
+    >
       <button
         type="button"
         onClick={() => router.back()}
-        className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[color-mix(in_srgb,var(--border)_50%,transparent)] hover:text-[var(--text)]"
+        className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[color-mix(in_srgb,var(--border)_60%,transparent)] hover:text-[var(--text)]"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
           <path d="M15 18l-6-6 6-6" />
@@ -47,13 +53,13 @@ export default function ProfileQrPage() {
         Back
       </button>
 
-      {!ready || (ready && !token) ? (
-        <p className="text-sm text-[var(--text-muted)]">Sign in required.</p>
-      ) : loading ? (
+      {showLoading ? (
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[color-mix(in_srgb,var(--primary)_20%,white)] border-t-[var(--primary)]" />
           <p className="text-sm text-[var(--text-muted)]">Loading QR…</p>
         </div>
+      ) : showSignIn ? (
+        <p className="text-sm text-[var(--text-muted)]">Sign in required.</p>
       ) : error ? (
         <div className="flex flex-col items-center gap-4 px-6 text-center">
           <p className="text-sm text-red-600">{error}</p>
@@ -67,7 +73,7 @@ export default function ProfileQrPage() {
         </div>
       ) : qr ? (
         <div className="flex flex-col items-center gap-6 px-6">
-          <div className="rounded-3xl bg-white p-4 shadow-lg">
+          <div className="rounded-3xl bg-white p-5 shadow-[0_24px_70px_-24px_rgba(34,34,33,0.25)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
