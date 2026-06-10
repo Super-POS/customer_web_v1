@@ -12,19 +12,20 @@ const NAV_ALL = [
   { href: "/orders", label: "Orders" },
   { href: "/meeting-rooms", label: "Rooms" },
   { href: "/wallet", label: "Wallet" },
-  { href: "/rewards", label: "Rewards" },
+  { href: "/passport", label: "Passport" },
   { href: "/payments", label: "Payments" },
+  { href: "/about", label: "About" },
 ] as const;
 
 const NAV_GUEST = NAV_ALL.filter(
-  (item) => item.href === "/" || item.href === "/meeting-rooms",
+  (item) => item.href === "/" || item.href === "/meeting-rooms" || item.href === "/about",
 );
 
 function navForLoggedInUser() {
   return CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY
     ? NAV_ALL.filter(
         (item) =>
-          item.href !== "/wallet" && item.href !== "/rewards" && item.href !== "/payments",
+          item.href !== "/wallet" && item.href !== "/passport" && item.href !== "/payments",
       )
     : NAV_ALL;
 }

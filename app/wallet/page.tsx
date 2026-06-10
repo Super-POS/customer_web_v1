@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignInGate } from "@/components/sign-in-gate";
 // import { BarayDepositModal } from "@/components/payments/baray-deposit-modal";
@@ -46,6 +47,12 @@ export default function WalletPage() {
   const router = useRouter();
   const { token } = useAuth();
   const [balance, setBalance] = useState<number>(0);
+  const [rewards, setRewards] = useState<{
+    balance: number;
+    total_earned?: number;
+    rank?: { name: string; icon?: string | null; level?: number } | null;
+    badge?: { name: string; icon?: string | null } | null;
+  } | null>(null);
   const [history, setHistory] = useState<WalletTx[]>([]);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalPage: 1, total: 0 });
@@ -56,11 +63,12 @@ export default function WalletPage() {
   const loadWallet = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetchJson<{ data: { balance: number } }>(
-        "/customer/wallet",
-        token,
-      );
-      setBalance(Number(res.data?.balance ?? 0));
+      const [walletRes, rewardsRes] = await Promise.all([
+        fetchJson<{ data: { balance: number } }>("/customer/wallet", token),
+        fetchJson<{ data: typeof rewards }>("/customer/rewards", token).catch(() => null),
+      ]);
+      setBalance(Number(walletRes.data?.balance ?? 0));
+      if (rewardsRes) setRewards(rewardsRes.data ?? null);
     } catch {
       setBalance(0);
     }
@@ -133,6 +141,46 @@ export default function WalletPage() {
               </div>
             </div>
           </section>
+
+          {/* Rewards summary */}
+          {rewards && !CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY && (
+            <div className="mt-4 overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white/80 p-5 backdrop-blur sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-[var(--text-muted)]">
+                    Impact Points
+                  </p>
+                  <p className="mt-1 font-[family-name:var(--font-oswald)] text-3xl font-bold leading-none text-[var(--primary)]">
+                    {(rewards.balance ?? 0).toLocaleString()}
+                    <span className="ml-1.5 text-base font-semibold text-[var(--text-muted)]">pts</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {rewards.rank && (
+                    <div className="flex items-center gap-2 rounded-2xl bg-[var(--primary-soft)] px-3 py-2">
+                      {rewards.rank.icon && (
+                        <span className="text-base">{rewards.rank.icon}</span>
+                      )}
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-[var(--primary-dark)]/60">
+                          Rank
+                        </p>
+                        <p className="text-sm font-black text-[var(--primary-dark)]">
+                          {rewards.rank.name}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <Link
+                    href="/passport"
+                    className="shrink-0 rounded-full border border-[var(--border)] bg-white/70 px-3 py-1.5 text-xs font-bold text-[var(--primary-dark)] transition hover:border-[var(--primary)] hover:bg-white"
+                  >
+                    Passport →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
 
           {CUSTOMER_WEB_WALLET_DEPOSIT_ENABLED ? (
             <p className="brand-card mt-6 rounded-[2rem] p-6 text-sm text-[var(--text-muted)]">

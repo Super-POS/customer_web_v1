@@ -12,6 +12,7 @@ import { MenuCartSidebar } from "./menu-cart-sidebar";
 import { MenuCategoryList } from "./menu-category-list";
 import { MenuCategoryNav } from "./menu-category-nav";
 import { MenuFloatingCart } from "./menu-floating-cart";
+import { ImpactPassportCard } from "./impact-passport-card";
 import { MenuOrderHero } from "./menu-hero";
 import { MenuItemDetailSidebar } from "./menu-item-detail-sidebar";
 import { MenuLoadingSkeleton } from "./menu-loading-skeleton";
@@ -245,7 +246,9 @@ export function MenuOrderInner() {
 
   return (
     <div className="pb-[max(7rem,calc(5rem+env(safe-area-inset-bottom)),calc(5rem+var(--tg-safe-area-inset-bottom,0px)))] lg:pb-12">
-      <MenuOrderHero />
+      {/* <MenuOrderHero /> */}
+
+      <ImpactPassportCard />
 
       {loadingMenus && !menus.length ? <MenuLoadingSkeleton /> : null}
 
