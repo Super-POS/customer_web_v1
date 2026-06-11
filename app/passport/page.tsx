@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { AccountPageHeader } from "@/components/account-page-header";
 import { SignInGate } from "@/components/sign-in-gate";
 import { useAuth } from "@/lib/auth-context";
@@ -8,6 +9,7 @@ import { fetchJson } from "@/lib/customer-fetch";
 import { notifyError } from "@/lib/notify";
 import { CUSTOMER_WEB_CASHIER_CHECKOUT_ONLY } from "@/lib/customer-web-flags";
 import { useRouter } from "next/navigation";
+import type { CustomerStamp } from "@/lib/mission";
 
 type RankInfo = {
   name: string;
@@ -48,6 +50,7 @@ export default function PassportPage() {
   const { token } = useAuth();
   const [profile, setProfile] = useState<RewardsProfile | null>(null);
   const [tiers, setTiers] = useState<RankTier[]>([]);
+  const [stamps, setStamps] = useState<CustomerStamp[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,12 +61,14 @@ export default function PassportPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [profileRes, tiersRes] = await Promise.all([
+      const [profileRes, tiersRes, stampsRes] = await Promise.all([
         fetchJson<{ data: RewardsProfile }>("/customer/rewards", token),
         fetchJson<{ data: RankTier[] }>("/customer/rewards/tiers", token),
+        fetchJson<{ data: CustomerStamp[] }>("/customer/missions/stamps", token),
       ]);
       setProfile(profileRes.data ?? null);
       setTiers(Array.isArray(tiersRes.data) ? tiersRes.data : []);
+      setStamps(Array.isArray(stampsRes.data) ? stampsRes.data : []);
     } catch (e) {
       notifyError(e instanceof Error ? e.message : "Failed to load passport.");
     } finally {
@@ -251,43 +256,90 @@ export default function PassportPage() {
               </section>
             )}
 
-            {/* Your Collection — badge stamps */}
+            {/* Stamp Passport — real collection from API */}
             <section className="brand-card rounded-[2rem] p-6">
-              <p className="brand-kicker">Achievements</p>
-              <h2 className="mt-1 font-[family-name:var(--font-oswald)] text-2xl font-bold text-[var(--text)]">
-                Your Collection
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="brand-kicker">Impact Passport</p>
+                  <h2 className="mt-1 font-[family-name:var(--font-oswald)] text-2xl font-bold text-[var(--text)]">
+                    Your Stamps
+                  </h2>
+                </div>
+                {stamps.length > 0 && (
+                  <span className="rounded-full bg-[var(--primary)] px-3 py-1 text-xs font-black text-white">
+                    {stamps.length} earned
+                  </span>
+                )}
+              </div>
 
-              {!profile?.badge ? (
-                <p className="mt-5 rounded-2xl border border-dashed border-[var(--border)] bg-white/55 px-4 py-10 text-center text-sm text-[var(--text-muted)]">
-                  No badges yet. Tap{" "}
-                  <span className="font-bold text-[var(--text)]">✨ Get Badge</span> on the home
-                  page to earn your first one!
-                </p>
+              {stamps.length === 0 ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-[var(--border)] bg-white/55 px-4 py-10 text-center">
+                  <p className="text-3xl">🗺️</p>
+                  <p className="mt-3 text-sm font-bold text-[var(--text)]">
+                    Your passport is empty
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    Complete{" "}
+                    <Link href="/missions" className="font-bold text-[var(--primary)]">
+                      Missions
+                    </Link>{" "}
+                    or order signature drinks to earn your first stamp!
+                  </p>
+                </div>
               ) : (
                 <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {/* Earned badge */}
-                  <div className="flex flex-col items-center gap-2 rounded-2xl bg-[var(--primary-soft)] p-4 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)] text-2xl text-white shadow-sm">
-                      {profile.badge.icon ?? "🏅"}
+                  {stamps.map((cs) => (
+                    <div
+                      key={cs.id}
+                      className="flex flex-col items-center gap-2 rounded-2xl bg-[var(--primary-soft)] p-4 text-center"
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)] text-2xl text-white shadow-sm">
+                        {cs.stamp?.icon ?? "🏅"}
+                      </div>
+                      <p className="text-[11px] font-bold leading-tight text-[var(--primary-dark)]">
+                        {cs.stamp?.stamp_name ?? "Stamp"}
+                      </p>
+                      {cs.earned_at && (
+                        <p className="text-[9px] text-[var(--text-muted)]">
+                          {new Date(cs.earned_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-[11px] font-bold leading-tight text-[var(--primary-dark)]">
+                  ))}
+
+                  {/* Locked placeholder slots (show 3 if fewer than 9 stamps) */}
+                  {stamps.length < 9 &&
+                    Array.from({ length: Math.min(3, 9 - stamps.length) }).map((_, i) => (
+                      <div
+                        key={`locked-${i}`}
+                        className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-white/40 p-4 text-center"
+                      >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] text-xl text-[var(--text-muted)]">
+                          ?
+                        </div>
+                        <p className="text-[10px] font-bold text-[var(--text-muted)]">Locked</p>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* Badge from rewards profile */}
+              {profile?.badge && (
+                <div className="mt-5 flex items-center gap-3 rounded-2xl bg-[color-mix(in_srgb,var(--primary-soft)_60%,white)] p-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xl text-white shadow-sm">
+                    {profile.badge.icon ?? "🏅"}
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[var(--primary-dark)]/60">
+                      Journey Badge
+                    </p>
+                    <p className="text-sm font-black text-[var(--primary-dark)]">
                       {profile.badge.name}
                     </p>
                   </div>
-
-                  {/* Locked placeholder slots */}
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-white/40 p-4 text-center"
-                    >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] text-xl text-[var(--text-muted)]">
-                        ?
-                      </div>
-                      <p className="text-[10px] font-bold text-[var(--text-muted)]">Locked</p>
-                    </div>
-                  ))}
                 </div>
               )}
             </section>
